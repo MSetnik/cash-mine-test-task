@@ -1,6 +1,6 @@
 # CashMine
 
-Live web build: **[add the public URL after deployment]**
+Live web build: [CashMine preview](https://msetnik.github.io/cash-mine-test-task/)
 
 ## Run locally
 

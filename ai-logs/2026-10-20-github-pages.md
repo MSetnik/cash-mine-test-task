@@ -34,3 +34,7 @@ The exported dashboard loads under `/cash-mine-test-task/`, and its Claim link s
 - `npm ci` succeeded with Node 24 in the isolated worktree. The static export produced five routes; generated asset and navigation URLs include `/cash-mine-test-task`.
 - TypeScript checking and all four demo amount tests passed. A local browser loaded the built balances page at the repository subpath and showed the demo dashboard.
 - A first local preview-server attempt was rejected because its directory scope was too broad. The preview was then served from a fixture containing only the build output.
+- The first Action built and uploaded successfully, but deploy was rejected because the `github-pages` environment allowed only `main`. Added an exact `docs/readme-notes` branch policy and reran the failed job; the run succeeded.
+- The public root, `/claim`, and `/activity` routes loaded with the expected page titles. The public Activity page had no console errors or failed nonstatic network requests.
+- The local preview showed two transient font request resets while the local server logged HTTP 200 for those resources. The public build did not reproduce the errors.
+- Updated README with the verified public URL and prepared the workflow to run on `main` after it is merged there.
