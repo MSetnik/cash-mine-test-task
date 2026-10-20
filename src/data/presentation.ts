@@ -1,19 +1,20 @@
+import { palette } from "../styles/theme/colors.ts";
 import type { ActivityItem } from "../api/contracts.ts";
 export function assetPresentation(asset: string) {
   const known: Record<
     string,
     { name: string; symbol: string; color: string; tint: string }
   > = {
-    USDT: { name: "Tether", symbol: "₮", color: "#21764B", tint: "#EAF3ED" },
-    BTC: { name: "Bitcoin", symbol: "₿", color: "#A94708", tint: "#F4E9DC" },
-    ETH: { name: "Ethereum", symbol: "Ξ", color: "#5B3B8A", tint: "#EDE9F7" },
+    USDT: { name: "Tether", symbol: "₮", color: palette.positive, tint: palette.positiveSoft },
+    BTC: { name: "Bitcoin", symbol: "₿", color: palette.accent, tint: palette.promo },
+    ETH: { name: "Ethereum", symbol: "Ξ", color: palette.ethereum, tint: palette.ethereumSoft },
   };
   return (
     known[asset] ?? {
       name: asset,
       symbol: asset.slice(0, 1),
-      color: "#625B54",
-      tint: "#EFEBE6",
+      color: palette.muted,
+      tint: palette.field,
     }
   );
 }

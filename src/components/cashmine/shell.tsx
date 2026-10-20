@@ -1,4 +1,4 @@
-import { palette as c, layout } from "@/constants/cashmine";
+import { palette as c, layout } from "@/styles/theme";
 import { Image } from "expo-image";
 import { Link, usePathname } from "expo-router";
 import Head from "expo-router/head";

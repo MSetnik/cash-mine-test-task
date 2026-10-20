@@ -3,7 +3,7 @@ import { View } from "react-native";
 import { ApiError } from "@/api";
 import { useBalances, useOperation, useSession } from "@/state/session";
 import { snapshotSettled } from "@/state/claim-workflow";
-import { palette as c } from "@/constants/cashmine";
+import { palette as c } from "@/styles/theme";
 import { Action, Copy, Status } from "./ui";
 
 export function RequestError({

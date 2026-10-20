@@ -1,3 +1,4 @@
+import { strings } from "@/localization";
 import { Link, router } from "expo-router";
 import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import { ActivityRow } from "@/components/cashmine/activity-row";
@@ -9,7 +10,7 @@ import {
   SectionTitle,
   Status,
 } from "@/components/cashmine/ui";
-import { palette as c, type as font } from "@/constants/cashmine";
+import { palette as c, typography as font } from "@/styles/theme";
 import { assetPresentation } from "@/data/presentation";
 import { usdTotals } from "@/lib/amounts";
 import { useBalances, useOperation } from "@/state/session";
@@ -33,9 +34,9 @@ export default function HomeScreen() {
     <Shell title="Balances">
       <View style={s.heading}>
         <View style={{ flex: 1 }}>
-          <Copy style={s.eyebrow}>YOUR PAYBACK</Copy>
+          <Copy style={s.eyebrow}>{strings.home.eyebrow}</Copy>
           <Copy role="heading" aria-level={1} style={s.title}>
-            Made from your trades.
+            {strings.home.title}
           </Copy>
         </View>
         <Pressable
@@ -58,12 +59,12 @@ export default function HomeScreen() {
       {totals && (
         <View style={s.balanceCard}>
           <View style={s.balanceTop}>
-            <Copy style={{ color: c.darkMuted }}>Total payback</Copy>
-            <Copy style={s.currency}>USD</Copy>
+            <Copy style={{ color: c.darkMuted }}>{strings.home.totalPayback}</Copy>
+            <Copy style={s.currency}>{strings.common.currency}</Copy>
           </View>
           <Copy style={s.total}>${totals.total}</Copy>
           <Copy style={s.balanceCaption}>
-            Your available, pending, and claiming balances.
+            {strings.home.balanceCaption}
           </Copy>
           <View style={s.stats}>
             {[
@@ -85,7 +86,7 @@ export default function HomeScreen() {
             icon="arrow"
             onPress={() => router.push("/claim")}
           >
-            Claim payback
+            {strings.home.claimPayback}
           </Action>
         </View>
       )}
@@ -101,7 +102,7 @@ export default function HomeScreen() {
               </Copy>
             }
           >
-            Your assets
+            {strings.home.yourAssets}
           </SectionTitle>
           {balances.data?.items.map((balance) => {
             const asset = {
@@ -150,7 +151,7 @@ export default function HomeScreen() {
                       ${asset.usd}
                     </Copy>
                     <Copy muted style={s.small}>
-                      Total value
+                      {strings.home.totalValue}
                     </Copy>
                   </View>
                   <Icon name="right" size={17} color={c.muted} />
@@ -158,7 +159,7 @@ export default function HomeScreen() {
                 <View style={s.assetLine} />
                 <View style={s.assetDetail}>
                   <Copy muted style={s.small}>
-                    Available
+                    {strings.common.balances.available}
                   </Copy>
                   <Copy weight="semibold" style={s.small}>
                     {asset.available} {asset.asset}
@@ -166,7 +167,7 @@ export default function HomeScreen() {
                 </View>
                 <View style={s.assetDetail}>
                   <Copy muted style={s.small}>
-                    Pending
+                    {strings.common.balances.pending}
                   </Copy>
                   <Copy muted style={s.small}>
                     {asset.pending} {asset.asset}
@@ -174,7 +175,7 @@ export default function HomeScreen() {
                 </View>
                 {asset.claiming !== "0" && (
                   <View style={s.assetDetail}>
-                    <Copy style={[s.small, { color: c.accent }]}>Claiming</Copy>
+                    <Copy style={[s.small, { color: c.accent }]}>{strings.common.balances.claiming}</Copy>
                     <Copy style={[s.small, { color: c.accent }]}>
                       {asset.claiming} {asset.asset}
                     </Copy>
@@ -188,11 +189,11 @@ export default function HomeScreen() {
           <SectionTitle
             aside={
               <Link href="/activity" style={s.textLink}>
-                View all ↗
+                {strings.home.viewAll}
               </Link>
             }
           >
-            Recent activity
+            {strings.home.recentActivity}
           </SectionTitle>
           <RequestError
             error={activity.error}
@@ -205,9 +206,9 @@ export default function HomeScreen() {
             ))}
           </View>
           <View style={s.explainer}>
-            <Status tone="warning">Good to know</Status>
+            <Status tone="warning">{strings.home.goodToKnow}</Status>
             <Copy weight="semibold" style={{ fontSize: 17 }}>
-              Trading fees. Coming back.
+              {strings.home.explainerTitle}
             </Copy>
             <Copy muted>
               Your confirmed payback is ready to claim. Pending payback becomes

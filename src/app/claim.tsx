@@ -1,3 +1,4 @@
+import { strings } from "@/localization";
 import { Link, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, TextInput, View } from "react-native";
@@ -8,7 +9,7 @@ import {
   ClaimStatusCard,
   RequestError,
 } from "@/components/cashmine/live-state";
-import { palette as c, type as font } from "@/constants/cashmine";
+import { palette as c, typography as font } from "@/styles/theme";
 import { useBalances, useOperation, useSession } from "@/state/session";
 import { previewClaim } from "@/lib/amounts";
 
@@ -175,7 +176,7 @@ function ClaimForm({ initialAsset }: { initialAsset?: string }) {
                         }}
                       >
                         <Copy style={{ color: c.accent }} weight="semibold">
-                          Max
+                          {strings.claim.max}
                         </Copy>
                       </Pressable>
                     </View>
@@ -198,7 +199,7 @@ function ClaimForm({ initialAsset }: { initialAsset?: string }) {
                 )}
                 <View style={s.rule} />
                 <Copy weight="semibold" style={s.label}>
-                  Destination
+                  {strings.claim.destination}
                 </Copy>
                 {reviewing ? (
                   <Copy>
@@ -241,7 +242,7 @@ function ClaimForm({ initialAsset }: { initialAsset?: string }) {
                   </Copy>
                 </View>
                 <View style={s.line}>
-                  <Copy weight="semibold">You receive</Copy>
+                  <Copy weight="semibold">{strings.claim.receive}</Copy>
                   <Copy weight="semibold">
                     {preview?.receive ?? "—"} {asset.asset}
                   </Copy>
@@ -279,7 +280,7 @@ function ClaimForm({ initialAsset }: { initialAsset?: string }) {
                       Confirm claim
                     </Action>
                     <Action variant="quiet" onPress={() => setReview(null)}>
-                      Edit amount
+                      {strings.claim.edit}
                     </Action>
                   </>
                 ) : (
@@ -295,7 +296,7 @@ function ClaimForm({ initialAsset }: { initialAsset?: string }) {
                       if (valid) setReview(signature);
                     }}
                   >
-                    Review claim
+                    {strings.claim.review}
                   </Action>
                 )}
               </View>

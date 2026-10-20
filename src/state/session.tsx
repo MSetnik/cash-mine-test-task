@@ -15,7 +15,7 @@ import {
 } from "@tanstack/react-query";
 import { ApiError, createCashmineApi, type CashmineApi } from "@/api";
 import { Action, Copy } from "@/components/cashmine/ui";
-import { palette as c } from "@/constants/cashmine";
+import { palette as c } from "@/styles/theme";
 import { ClaimWorkflow, snapshotSettled } from "./claim-workflow";
 
 const SESSION_KEY = "cashmine.session.v1";

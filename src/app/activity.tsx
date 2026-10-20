@@ -1,9 +1,10 @@
+import { strings } from "@/localization";
 import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { ActivityRow } from "@/components/cashmine/activity-row";
 import { Shell } from "@/components/cashmine/shell";
 import { Action, Copy, Icon } from "@/components/cashmine/ui";
-import { palette as c, type as font } from "@/constants/cashmine";
+import { palette as c, typography as font } from "@/styles/theme";
 import { useActivity } from "@/state/activity";
 import { RequestError } from "@/components/cashmine/live-state";
 
@@ -19,12 +20,12 @@ export default function ActivityScreen() {
   return (
     <Shell title="Activity">
       <View style={s.page}>
-        <Copy style={s.eyebrow}>EVERY LITTLE BIT</Copy>
+        <Copy style={s.eyebrow}>{strings.activity.eyebrow}</Copy>
         <Copy role="heading" aria-level={1} style={s.title}>
-          Your payback, on record.
+          {strings.activity.title}
         </Copy>
         <Copy muted style={s.subtitle}>
-          The earnings, claims, and adjustments along the way.
+          {strings.activity.subtitle}
         </Copy>
         <RequestError
           error={query.error}
@@ -104,8 +105,8 @@ export default function ActivityScreen() {
         {visible.length === 0 && !query.isPending && !query.error && (
           <View style={s.empty}>
             <Icon name="activity" color={c.muted} size={32} />
-            <Copy weight="semibold">No activity yet</Copy>
-            <Copy muted>Payback and claims will appear here.</Copy>
+            <Copy weight="semibold">{strings.activity.emptyTitle}</Copy>
+            <Copy muted>{strings.activity.emptyDescription}</Copy>
           </View>
         )}
         <Copy muted style={s.count}>
@@ -117,7 +118,7 @@ export default function ActivityScreen() {
             busy={query.isFetchingNextPage}
             onPress={() => void query.fetchNextPage()}
           >
-            Load more activity
+            {strings.activity.loadMore}
           </Action>
         )}
       </View>

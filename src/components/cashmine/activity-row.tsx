@@ -1,4 +1,4 @@
-import { palette as c } from "@/constants/cashmine";
+import { palette as c } from "@/styles/theme";
 import type { PresentedActivity } from "@/data/presentation";
 import { StyleSheet, View } from "react-native";
 import { Copy, Icon, Status } from "./ui";
