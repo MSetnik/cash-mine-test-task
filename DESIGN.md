@@ -60,7 +60,7 @@ Inter Regular is body text; Inter SemiBold is headings, actions, and amounts. In
 
 ## Layout
 
-Design around 390px width with 24px page insets. The natural content scrolls inside the screen; the bottom navigation remains accessible above safe-area padding. Content reserves 110px at the bottom so navigation does not cover controls. At 840px and wider, dashboard assets and recent activity become two columns. Claim and Activity remain constrained to readable 520px and 640px panels. The overall page cap is 1040px.
+Design around 390px width with 24px page insets. The natural content scrolls inside the screen; the bottom navigation remains accessible above safe-area padding. Content reserves 110px at the bottom so navigation does not cover controls. At 840px and wider, dashboard assets and recent activity become two columns. Apply their flex proportions only at that desktop breakpoint; mobile sections retain their natural content height so the footer cannot overlap the explainer card. Claim and Activity remain constrained to readable 520px and 640px panels. The overall page cap is 1040px.
 
 ## Elevation & Depth
 

@@ -21,6 +21,12 @@
   #dashboard-columns {
     flex-direction: row;
   }
+  #dashboard-columns > div:first-child {
+    flex: 1.15;
+  }
+  #dashboard-columns > div:last-child {
+    flex: 1;
+  }
 }
 
 * {

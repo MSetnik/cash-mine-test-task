@@ -77,6 +77,46 @@ Browser testing caught a navigation bug that the build checks missed: the bottom
 
 The interaction and layout checks passed, but the console check found a hydration error when opening an asset-specific claim link directly. The exported page initially showed USDT while the browser selected the asset from the URL. I’m fixing that initial-render mismatch before the commit.
 
+## Assistant
+
+The claim hydration error is fixed. A final screenshot review also showed that the desktop columns weren’t being applied reliably after static rendering, so I’ve moved that layout switch to CSS.
+
+I’m saving a checkpoint commit to keep the required commit cadence, then I’ll verify the corrected layout and push `dummy-visuals`.
+
+## Assistant
+
+The desktop layout is corrected. The latest run reached every demo flow, but the temporary preview server reset a font request. I’ve switched local servers to resolve that test-environment issue.
+
+The UI and checkpoint commit are saved. Once this check finishes, I’ll add the verification results to the log and push the branch.
+
+## User
+
+the "trading fees. Coming back." visual is having padding bottom issues
+
+## Assistant
+
+I’ll inspect the “Trading fees. Coming back.” card and fix its bottom spacing before finishing this branch.
+
+## Assistant
+
+I found the cause: on phone widths, the activity column was shrinking below its content height, so the footer overlapped the card.
+
+`★ Insight ─────────────────────────────────────`
+- The card already has 20 px bottom padding. Its parent’s desktop flex sizing was causing the overlap.
+- I’ll apply those column proportions only on desktop, allowing mobile sections to grow with their content.
+`─────────────────────────────────────────────────`
+
+## Assistant
+
+The overlap is fixed and verified at 320, 390, and 1280 px. TypeScript, lint, the production build, and all demo browser flows pass.
+
+`★ Insight ─────────────────────────────────────`
+- The card keeps its 20 px inner padding, with at least 32 px between it and the footer.
+- The browser checks now verify vertical containment, covering the issue that horizontal overflow checks missed.
+`─────────────────────────────────────────────────`
+
+I’m recording the results and pushing `dummy-visuals`.
+
 ## Tool-event record — summaries
 
 - Created `dummy-visuals` from the existing `main`. Existing uncommitted logging changes were preserved.
@@ -92,3 +132,12 @@ The interaction and layout checks passed, but the console check found a hydratio
 - Browser verification exposed missing pressed-state semantics on the asset buttons. Added `aria-pressed` to asset and activity filter buttons.
 - A subsequent browser run exercised the interactions and viewports successfully but failed its no-console-errors assertion with React hydration error 418. The direct claim URL selected an asset that differed from the statically exported HTML. Added a hydration-safe initial asset using `useSyncExternalStore`, then rebuilt. The browser harness was also corrected to wait for client initialization before asserting titles and responsive layouts.
 - Scanned source, the exported build, and AI logs against the actual local token without printing its value; no token was found. Saved the strict design audit with the private project path redacted.
+- A visual review caught a desktop layout discrepancy even after the initial overflow checks passed. Replaced the viewport-dependent React render with a CSS media query and added an explicit two-column assertion to the browser check. The browser check also captures console errors, not only page exceptions.
+- Created checkpoint commit `6e6de1b` (`Build CashMine branded screens with dummy data`) before final verification.
+- The temporary Python preview server intermittently reset font requests. Replaced it with an isolated localhost Node static server. The full browser run then passed with zero page or console errors.
+- The owner subsequently identified a bottom-spacing issue in the explainer. Measurements confirmed that at 390px the activity column was about 62px shorter than its content, causing the footer to overlap the card. This exposed a gap in the earlier checks: horizontal overflow checks did not detect vertical overlap.
+- Moved the dashboard column flex proportions into the desktop media query. Mobile columns now use their natural content height. Added targeted browser assertions for the card's bottom inset, the gap to the footer, and column content overflow at 320px, 390px, and 1280px.
+- Concurrent formatting and TypeScript-diagnostics work remained outside this task's changes.
+- Final spacing fix passed TypeScript, lint, and Expo web export. The isolated production-browser run passed all demo interactions and all three viewport sizes with zero page or console errors. Saved its report in `ai-logs/verification/dummy-visuals-browser.json` and visually inspected screenshots of the corrected card at every tested width.
+- The four exact-amount unit checks and strict design audit passed earlier in this task; the spacing fix did not change amount logic. Design-document lint has six non-blocking unused-token warnings, as recorded above.
+- Scope: visual prototype only. Real token entry, API integration, submission recovery, balance reconciliation, and public deployment remain for later tasks. Approximate visual-task duration through final verification: 40 minutes. This transcript captures the available user-facing conversation through the final pre-push update; tool events above are summarized separately.

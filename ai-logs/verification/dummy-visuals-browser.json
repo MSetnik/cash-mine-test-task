@@ -1,0 +1,21 @@
+{
+  "checks": [
+    "Home refresh preserves fixture amounts and announces completion",
+    "Claim validation, focus, Max, exact fee, edit preservation, pending and completed previews",
+    "ETH selection, exact fractional fee and failed preview",
+    "Activity filtering, load more and pagination reset",
+    "Direct asset claim link",
+    "No horizontal overflow on all four routes at 320px, 390px and 1280px",
+    "Explainer retains 20px bottom padding, footer stays at least 32px below it, and dashboard column content does not overflow at all three widths",
+    "Desktop dashboard uses the intended two-column layout",
+    "Visible keyboard focus, reduced-motion rendering and themed scrollbar"
+  ],
+  "browserErrors": [],
+  "viewports": [
+    320,
+    390,
+    1280
+  ],
+  "testedAt": "2026-10-20",
+  "target": "Local Expo production web export"
+}

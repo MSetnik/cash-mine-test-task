@@ -109,7 +109,7 @@ export default function HomeScreen() {
         </Copy>
       </View>
       <View nativeID="dashboard-columns" style={s.columns}>
-        <View style={{ flex: 1.15, gap: 16 }}>
+        <View style={s.column}>
           <SectionTitle
             aside={
               <Copy muted style={s.small}>
@@ -193,7 +193,7 @@ export default function HomeScreen() {
             </Pressable>
           ))}
         </View>
-        <View style={{ flex: 1, gap: 16 }}>
+        <View style={s.column}>
           <SectionTitle
             aside={
               <Link href="/activity" style={s.textLink}>
@@ -317,6 +317,7 @@ const s = StyleSheet.create({
     marginBottom: 18,
   },
   columns: { gap: 28 },
+  column: { gap: 16 },
   small: { fontSize: 12, lineHeight: 19 },
   assetCard: { backgroundColor: c.card, borderRadius: 18, padding: 18, gap: 7 },
   assetTop: { flexDirection: "row", alignItems: "center", gap: 12 },
