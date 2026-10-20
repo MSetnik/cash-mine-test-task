@@ -1,0 +1,221 @@
+import { API_BASE_URL, REQUEST_TIMEOUT_MS } from "./config.ts";
+import type {
+  ActivityQuery,
+  CreateClaimRequest,
+  CreateClaimResult,
+  RequestOptions,
+} from "./contracts.ts";
+import { ApiError, httpError } from "./errors.ts";
+import {
+  DECIMAL_PATTERN,
+  parseActivity,
+  parseBalances,
+  parseClaim,
+  parseClaimOptions,
+  sameDecimal,
+} from "./validation.ts";
+
+interface ClientOptions {
+  token: string;
+  fetchImpl?: typeof fetch;
+  timeoutMs?: number;
+}
+
+// One immutable token per client. The session layer must discard old responses
+// and cancel old requests when replacing this instance after a token change.
+export function createCashmineApi({
+  token,
+  fetchImpl = globalThis.fetch,
+  timeoutMs = REQUEST_TIMEOUT_MS,
+}: ClientOptions) {
+  if (!token.trim() || /[\r\n]/.test(token)) {
+    throw new ApiError("Enter a valid API token.", { kind: "validation", field: "token" });
+  }
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0 || timeoutMs > 2_147_483_647) {
+    throw new ApiError("Request timeout must be a positive timer-safe integer.", { kind: "validation" });
+  }
+  // Validate header syntax before a request starts. Never retain the raw error.
+  try {
+    new Headers({ Authorization: `Bearer ${token}` });
+  } catch {
+    throw new ApiError("Enter a valid API token.", { kind: "validation", field: "token" });
+  }
+
+  function inputError(message: string, field: string, submission = false): never {
+    throw new ApiError(message, {
+      kind: "validation",
+      field,
+      submissionOutcome: submission ? "not-sent" : "not-applicable",
+    });
+  }
+
+  function required(value: string, field: string, submission = false) {
+    if (typeof value !== "string" || !value.trim()) {
+      inputError(`${field} is required.`, field, submission);
+    }
+  }
+
+  async function request<T>(
+    path: string,
+    parse: (value: unknown) => T,
+    options: RequestOptions = {},
+    submission?: { body: string; key: string },
+  ): Promise<{ data: T; response: Response }> {
+    const controller = new AbortController();
+    let timedOut = false;
+    let sent = false;
+    const outcome = () => submission ? sent ? "unknown" as const : "not-sent" as const : "not-applicable" as const;
+    const abortError = () => new ApiError(
+      timedOut ? "The API request timed out." : "The API request was cancelled.",
+      { kind: timedOut ? "timeout" : "aborted", submissionOutcome: outcome() },
+    );
+    if (options.signal?.aborted) throw abortError();
+    const cancel = () => controller.abort();
+    options.signal?.addEventListener("abort", cancel, { once: true });
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, timeoutMs);
+    let rejectAbort: () => void = () => {};
+    const aborted = new Promise<never>((_, reject) => {
+      rejectAbort = () => reject(abortError());
+      controller.signal.addEventListener("abort", rejectAbort, { once: true });
+    });
+
+    try {
+      const execute = async () => {
+        sent = true;
+        const response = await fetchImpl(`${API_BASE_URL}${path}`, {
+          method: submission ? "POST" : "GET",
+          headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${token}`,
+            ...(submission ? {
+              "Content-Type": "application/json",
+              "Idempotency-Key": submission.key,
+            } : {}),
+          },
+          body: submission?.body,
+          signal: controller.signal,
+          cache: "no-store",
+          credentials: "omit",
+          redirect: "error",
+        });
+        let payload: unknown;
+        try {
+          payload = await response.json();
+        } catch {
+          if (!response.ok) throw httpError(response, undefined, !!submission);
+          throw new ApiError("The API returned invalid JSON.", {
+            kind: "protocol", status: response.status, submissionOutcome: outcome(),
+          });
+        }
+        if (!response.ok) throw httpError(response, payload, !!submission);
+        if (!(submission ? [200, 201] : [200]).includes(response.status)) {
+          throw new ApiError("The API returned an unexpected success status.", {
+            kind: "protocol", status: response.status, submissionOutcome: outcome(),
+          });
+        }
+        try {
+          return { data: parse(payload), response };
+        } catch {
+          throw new ApiError("The API returned an unexpected response shape.", {
+            kind: "protocol", status: response.status, submissionOutcome: outcome(),
+          });
+        }
+      };
+      // Includes response-body consumption in the deadline, even for a fetch
+      // implementation that fails to reject promptly after an abort.
+      return await Promise.race([execute(), aborted]);
+    } catch (error) {
+      if (controller.signal.aborted) throw abortError();
+      if (error instanceof ApiError) throw error;
+      throw new ApiError("Could not reach the API.", {
+        kind: "network",
+        submissionOutcome: outcome(),
+      });
+    } finally {
+      clearTimeout(timeout);
+      options.signal?.removeEventListener("abort", cancel);
+      controller.signal.removeEventListener("abort", rejectAbort);
+    }
+  }
+
+  return {
+    async getBalances(options?: RequestOptions) {
+      return (await request("/v1/balances", parseBalances, options)).data;
+    },
+    async getClaimOptions(asset: string, options?: RequestOptions) {
+      required(asset, "asset");
+      const query = new URLSearchParams({ asset });
+      return (await request(`/v1/claim-options?${query}`, (payload) => {
+        const result = parseClaimOptions(payload);
+        if (result.asset !== asset) throw new Error("Asset does not match.");
+        return result;
+      }, options)).data;
+    },
+    async createClaim(
+      body: CreateClaimRequest,
+      idempotencyKey: string,
+      options?: RequestOptions,
+    ): Promise<CreateClaimResult> {
+      required(body.asset, "asset", true);
+      required(body.destinationId, "destinationId", true);
+      if (typeof body.amount !== "string" || !DECIMAL_PATTERN.test(body.amount)) {
+        inputError("Use a canonical decimal amount.", "amount", true);
+      }
+      required(idempotencyKey, "idempotencyKey", true);
+      if (idempotencyKey.length > 100) {
+        inputError("Idempotency key must contain 1–100 characters.", "idempotencyKey", true);
+      }
+      if (idempotencyKey !== idempotencyKey.trim()) {
+        inputError("Idempotency key must not have surrounding whitespace.", "idempotencyKey", true);
+      }
+      try {
+        new Headers({ "Idempotency-Key": idempotencyKey });
+      } catch {
+        inputError("Idempotency key must be a valid HTTP header.", "idempotencyKey", true);
+      }
+      const frozenBody = {
+        asset: body.asset,
+        amount: body.amount,
+        destinationId: body.destinationId,
+      };
+      const { data, response } = await request("/v1/claims", (payload) => {
+        const result = parseClaim(payload);
+        if (
+          result.asset !== frozenBody.asset
+          || result.destinationId !== frozenBody.destinationId
+          || !sameDecimal(result.amount, frozenBody.amount)
+        ) {
+          throw new Error("Claim does not match the submitted request.");
+        }
+        return result;
+      }, options, { body: JSON.stringify(frozenBody), key: idempotencyKey });
+      return { claim: data, replayed: response.status === 200 || response.headers.get("Idempotent-Replayed") === "true" };
+    },
+    async getClaim(id: string, options?: RequestOptions) {
+      required(id, "id");
+      if (id === "." || id === "..") inputError("Use a valid claim id.", "id");
+      return (await request(`/v1/claims/${encodeURIComponent(id)}`, (payload) => {
+        const result = parseClaim(payload);
+        if (result.id !== id) throw new Error("Claim id does not match.");
+        return result;
+      }, options)).data;
+    },
+    async getActivity(query: ActivityQuery = {}, options?: RequestOptions) {
+      const limit = query.limit ?? 20;
+      if (!Number.isInteger(limit) || limit < 1 || limit > 20) {
+        inputError("Activity limit must be between 1 and 20.", "limit");
+      }
+      const params = new URLSearchParams({ limit: String(limit) });
+      if (query.cursor !== undefined) {
+        required(query.cursor, "cursor");
+        params.set("cursor", query.cursor);
+      }
+      return (await request(`/v1/activity?${params}`, parseActivity, options)).data;
+    },
+  };
+}
+
+export type CashmineApi = ReturnType<typeof createCashmineApi>;

@@ -31,10 +31,11 @@ The static web build is written to `dist/`.
 - A CashMine-branded balances dashboard with sample asset balances and USD totals.
 - An interactive demo claim flow with asset selection, amount validation, Max, fee review, confirmation, and sample pending/completed/failed outcomes.
 - Activity filters, date groups, and local pagination with dummy transactions.
+- A typed API client for all five CashMine operations, with response validation, cancellation, timeouts, structured errors, and focused contract tests. See [API structure and integration guidance](docs/api-client.md).
 - File-based navigation in `src/app/`, with strict TypeScript and `@/` imports.
 - Web development and static export.
 
-This is a visual prototype using dummy data. No API calls or real claims occur, and demo claims do not change the fixture balances. Runtime token entry, live balances, idempotent submission, recovery, and real activity pagination remain to be implemented.
+The screens remain a visual prototype using dummy data. They do not call the API or create real claims, and demo claims do not change fixture balances. The API client has been checked against the live read endpoints, but connecting it to runtime token entry, balances, claim submission/recovery, and activity pagination remains to be implemented.
 
 Brand colors and the public logo are taken from [CashMine](https://cashmine.io/); see `DESIGN.md` for sources and visual conventions. Inter is bundled with its OFL license.
 
