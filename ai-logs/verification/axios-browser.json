@@ -1,0 +1,15 @@
+{
+  "testedAt": "2026-10-20T13:27:29.369Z",
+  "runtime": "Headless Chrome with Axios browser ESM build and controlled API responses",
+  "checks": [
+    "Exact decimal strings preserved",
+    "201 creation and 200 replay",
+    "Malformed success remains an unknown outcome",
+    "429 exposes retry delay",
+    "Native browser timeout maps to unknown submission outcome",
+    "One request per operation with caller-owned idempotency key",
+    "No Axios credential/config leakage"
+  ],
+  "realClaimSubmission": false,
+  "transport": "Axios 1.20.0 (built-in fetch adapter)"
+}

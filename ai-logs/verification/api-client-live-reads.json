@@ -1,0 +1,28 @@
+{
+  "testedAt": "2026-10-20T13:14:28.841Z",
+  "target": "CashMine task API",
+  "checks": [
+    {
+      "operation": "getBalances",
+      "status": "passed",
+      "validatedItems": 3
+    },
+    {
+      "operation": "getClaimOptions",
+      "status": "passed",
+      "validatedDestinations": 2
+    },
+    {
+      "operation": "getActivity",
+      "status": "passed",
+      "validatedItems": 2
+    },
+    {
+      "operation": "getActivity with server cursor",
+      "status": "passed",
+      "validatedItems": 2,
+      "overlappingItems": 1
+    }
+  ],
+  "liveClaimSubmission": "Not performed; covered by mocked contract tests."
+}
