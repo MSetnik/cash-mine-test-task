@@ -126,10 +126,13 @@ Before delivery, run the available type checks, lint, relevant tests, and `npx e
 - Use runtime token entry with browser persistence as required. Do not log authorization headers or token values. Keep sensitive browser storage out of diagnostic output.
 - Before initializing or publishing the repository, inspect `REQUIREMENTS.md` and all staged content for credentials. The supplied assignment originally contained a personal token; the repository copy must stay redacted.
 - Keep authentic AI conversations in `ai-logs/` throughout the work. Exports, share links, copied conversations, or screenshots are acceptable. Preserve prompts, mistakes, and disagreements; redact private information only.
+- Update the relevant conversation log before finishing each task. Use a dated, descriptive filename per conversation, preserve user-facing prompts and responses in order, and state the captured scope. Keep any tool summaries separate from the transcript. Redact secrets and private local paths, preserve other sessions' logs, and never imply access to conversations that are unavailable.
 - A summary is not a substitute for the required conversation evidence. If an export requires owner action, say so early and provide a practical copy-paste or screenshot option.
 - Do not manufacture the three required AI moments. When they occur, retain their real context and give each an accurate log reference.
 
 ## Delivery workflow and documentation
+
+The owner requests one separate branch per task. Create and switch to a descriptive task branch before implementation; the first visual task uses `dummy-visuals`. After the task is finished and verified, commit its changes and push that branch to `origin`. This is standing authorization for those commits and pushes; no repeated permission is needed. Keep other tasks' changes intact, include the task's sanitized AI log, and do not merge to `main` unless requested. Continue observing the assignment's release deadline.
 
 1. Confirm the requirements and unresolved decisions. Initialize Git if needed, after checking ignore rules and redacting secrets.
 2. Establish Expo/TypeScript, runtime token entry, and the shared API client.
