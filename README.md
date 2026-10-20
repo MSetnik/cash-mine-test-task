@@ -20,6 +20,7 @@ Use `npm start` to open the Expo development server, or `npm run ios` / `npm run
 ```sh
 npm run typecheck
 npm run lint
+npm test
 npm run build:web
 ```
 
@@ -27,11 +28,15 @@ The static web build is written to `dist/`.
 
 ## What works
 
-- The Expo starter home and explore screens.
+- A CashMine-branded balances dashboard with sample asset balances and USD totals.
+- An interactive demo claim flow with asset selection, amount validation, Max, fee review, confirmation, and sample pending/completed/failed outcomes.
+- Activity filters, date groups, and local pagination with dummy transactions.
 - File-based navigation in `src/app/`, with strict TypeScript and `@/` imports.
 - Web development and static export.
 
-CashMine balances, token entry, claims, and activity are not implemented yet.
+This is a visual prototype using dummy data. No API calls or real claims occur, and demo claims do not change the fixture balances. Runtime token entry, live balances, idempotent submission, recovery, and real activity pagination remain to be implemented.
+
+Brand colors and the public logo are taken from [CashMine](https://cashmine.io/); see `DESIGN.md` for sources and visual conventions. Inter is bundled with its OFL license.
 
 Local environment files are ignored by Git. Do not embed API tokens in source code or `EXPO_PUBLIC_` environment variables.
 
