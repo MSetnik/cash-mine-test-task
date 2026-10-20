@@ -1,9 +1,9 @@
 import { palette as c } from "@/constants/cashmine";
-import type { ActivityItem } from "@/data/demo";
+import type { PresentedActivity } from "@/data/presentation";
 import { StyleSheet, View } from "react-native";
 import { Copy, Icon, Status } from "./ui";
 
-export function ActivityRow({ item }: { item: ActivityItem }) {
+export function ActivityRow({ item }: { item: PresentedActivity }) {
   return (
     <View style={s.row}>
       <View

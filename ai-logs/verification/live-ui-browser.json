@@ -1,0 +1,27 @@
+{
+  "viewport": 390,
+  "checks": [
+    "runtime token",
+    "live query rendering",
+    "max and fee",
+    "confirmation",
+    "duplicate tap",
+    "unknown outcome",
+    "reload recovery",
+    "same body and key",
+    "pending to completed",
+    "stale snapshot blocks new claim",
+    "newer snapshot unlocks",
+    "activity pagination dedup",
+    "rate limit gate",
+    "change token",
+    "no horizontal overflow",
+    "no page errors",
+    "unauthorized token replacement",
+    "pending to failed",
+    "failed claim waits for newer snapshot",
+    "new token uses distinct operation"
+  ],
+  "postCount": 3,
+  "network": "Controlled API responses; no live claims"
+}

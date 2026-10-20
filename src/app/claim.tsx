@@ -1,371 +1,309 @@
 import { Link, useLocalSearchParams } from "expo-router";
-import {
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-  type ComponentRef,
-} from "react";
+import { useState } from "react";
 import { Pressable, StyleSheet, TextInput, View } from "react-native";
+import { useQuery } from "@tanstack/react-query";
 import { Shell } from "@/components/cashmine/shell";
-import { Action, Copy, Icon, Status } from "@/components/cashmine/ui";
+import { Action, Copy } from "@/components/cashmine/ui";
+import {
+  ClaimStatusCard,
+  RequestError,
+} from "@/components/cashmine/live-state";
 import { palette as c, type as font } from "@/constants/cashmine";
-import { demoAssets, previewDemoClaim } from "@/data/demo";
-
-type Stage = "edit" | "review" | "pending" | "completed" | "failed";
-
-const subscribeToHydration = () => () => {};
+import { useBalances, useOperation, useSession } from "@/state/session";
+import { previewClaim } from "@/lib/amounts";
 
 export default function ClaimScreen() {
   const params = useLocalSearchParams<{ asset?: string }>();
-  // Exported HTML has no query string. Match that first, then select the URL asset.
-  const hydrated = useSyncExternalStore(
-    subscribeToHydration,
-    () => true,
-    () => false,
+  return (
+    <Shell title="Claim">
+      <ClaimForm key={params.asset ?? "default"} initialAsset={params.asset} />
+    </Shell>
   );
-  const initialAsset = hydrated ? (params.asset ?? "USDT") : "USDT";
-  return <ClaimForm key={initialAsset} initialAsset={initialAsset} />;
 }
-
-function ClaimForm({ initialAsset }: { initialAsset: string }) {
+function ClaimForm({ initialAsset }: { initialAsset?: string }) {
+  const { api, request, workflow } = useSession();
+  const balances = useBalances();
+  const { operation, error, busy } = useOperation();
   const [selected, setSelected] = useState(initialAsset);
   const [amount, setAmount] = useState("");
+  const [destination, setDestination] = useState<string>();
+  const [review, setReview] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
-  const [stage, setStage] = useState<Stage>("edit");
-  const input = useRef<ComponentRef<typeof TextInput>>(null);
-  const heading = useRef<ComponentRef<typeof View>>(null);
-  const previousStage = useRef(stage);
   const asset =
-    demoAssets.find((item) => item.asset === selected) ?? demoAssets[0];
-  const preview = previewDemoClaim(amount, asset);
-  const error = touched ? preview.error : null;
-  useEffect(() => {
-    // The full-page review/status view is deliberately not a modal.
-    if (previousStage.current !== stage) heading.current?.focus();
-    previousStage.current = stage;
-  }, [stage]);
-
-  function review() {
-    setTouched(true);
-    if (preview.error) {
-      input.current?.focus();
-      return;
-    }
-    setStage("review");
-  }
-  function reset() {
-    setStage("edit");
-    setAmount("");
-    setTouched(false);
-  }
-
+    balances.data?.items.find((b) => b.asset === selected) ??
+    balances.data?.items[0];
+  const options = useQuery({
+    queryKey: ["claim-options", asset?.asset],
+    enabled: !!asset,
+    queryFn: ({ signal }) =>
+      request(() => api.getClaimOptions(asset!.asset, { signal })),
+  });
+  const destinationId = destination ?? options.data?.destinations[0]?.id ?? "";
+  const preview =
+    asset && options.data
+      ? previewClaim(amount, asset, options.data, destinationId)
+      : null;
+  const signature = JSON.stringify({
+    asset: asset?.asset,
+    amount: preview?.amount,
+    receive: preview?.receive,
+    options: options.data,
+    destinationId,
+  });
+  const reviewing = review !== null && review === signature && !preview?.error;
+  const valid =
+    !!preview && !preview.error && !options.isError && !balances.isError;
+  const reload = () => {
+    void balances.refetch();
+    void options.refetch();
+  };
   return (
-    <Shell title="Claim payback">
-      <View style={s.page}>
-        <Link href="/" style={s.back}>
-          ← Balances
-        </Link>
-        <View ref={heading} tabIndex={-1}>
-          <Copy style={s.eyebrow}>MAKE IT YOURS</Copy>
-          <Copy role="heading" aria-level={1} style={s.title}>
-            {stage === "edit"
-              ? "Claim your payback."
-              : stage === "review"
-                ? "Everything look right?"
-                : stage === "pending"
-                  ? "Your claim is on its way."
-                  : stage === "completed"
-                    ? "Payback, paid back."
-                    : "This claim didn’t complete."}
-          </Copy>
-        </View>
-        <Copy muted style={s.subtitle}>
-          {stage === "edit"
-            ? "Choose an asset and move your payback to your wallet."
-            : stage === "review"
-              ? "Review the details before you confirm your demo claim."
-              : "This is a sample claim. Your balances have not changed."}
-        </Copy>
-
-        {stage === "edit" ? (
-          <>
-            <Copy weight="semibold" style={s.label}>
-              Select asset
-            </Copy>
-            <View style={s.assets}>
-              {demoAssets.map((item) => (
-                <Pressable
-                  key={item.asset}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: asset.asset === item.asset }}
-                  aria-pressed={asset.asset === item.asset}
-                  accessibilityLabel={`Select ${item.name}`}
-                  onPress={() => {
-                    setSelected(item.asset);
-                    setAmount("");
-                    setTouched(false);
-                  }}
-                  style={({ pressed }) => [
-                    s.assetButton,
-                    asset.asset === item.asset && s.selected,
-                    pressed && { opacity: 0.7 },
-                  ]}
-                >
-                  <Copy style={{ fontSize: 23, color: item.color }}>
-                    {item.symbol}
-                  </Copy>
-                  <Copy weight="semibold">{item.asset}</Copy>
-                </Pressable>
-              ))}
+    <View style={s.page}>
+      <Link href="/" style={s.back}>
+        ← Back to balances
+      </Link>
+      <Copy style={s.eyebrow}>READY WHEN YOU ARE</Copy>
+      <Copy role="heading" aria-level={1} style={s.title}>
+        {operation
+          ? "Your claim"
+          : reviewing
+            ? "Review your claim."
+            : "Make it yours."}
+      </Copy>
+      <Copy muted style={s.subtitle}>
+        Claim your confirmed payback. The fee is deducted once from the amount
+        you choose.
+      </Copy>
+      <ClaimStatusCard />
+      <RequestError error={balances.error ?? options.error} retry={reload} />
+      {!operation && (
+        <>
+          {error && (
+            <View style={{ gap: 12, marginBottom: 20 }}>
+              <Copy role="alert" style={{ color: c.negative }}>
+                {error}
+              </Copy>
+              <Action
+                variant="secondary"
+                onPress={() => {
+                  workflow.dismissRejection();
+                  setReview(null);
+                  reload();
+                }}
+              >
+                Review updated balances
+              </Action>
             </View>
-            <View style={s.formCard}>
-              <View style={s.amountHeading}>
-                <Copy nativeID="amount-label" weight="semibold">
-                  Amount to claim
+          )}
+          {!asset || !options.data ? (
+            <Copy>
+              {balances.isPending || options.isPending
+                ? "Loading claim rules…"
+                : "No assets available to claim."}
+            </Copy>
+          ) : (
+            <>
+              {!reviewing && (
+                <>
+                  <Copy weight="semibold" style={s.label}>
+                    Choose an asset
+                  </Copy>
+                  <View style={s.assets}>
+                    {balances.data?.items.map((b) => (
+                      <Pressable
+                        key={b.asset}
+                        accessibilityRole="button"
+                        aria-pressed={asset.asset === b.asset}
+                        onPress={() => {
+                          setSelected(b.asset);
+                          setAmount("");
+                          setDestination(undefined);
+                          setReview(null);
+                          setTouched(false);
+                        }}
+                        style={[
+                          s.assetButton,
+                          asset.asset === b.asset && s.selected,
+                        ]}
+                      >
+                        <Copy weight="semibold">{b.asset}</Copy>
+                      </Pressable>
+                    ))}
+                  </View>
+                </>
+              )}
+              <View style={s.formCard}>
+                <Copy weight="semibold" style={s.label}>
+                  {reviewing ? "Claim amount" : "Amount"}
                 </Copy>
-                <Copy muted style={{ fontSize: 12 }}>
-                  {asset.asset}
+                {reviewing ? (
+                  <Copy style={{ fontSize: 26, lineHeight: 36 }}>
+                    {preview?.amount} {asset.asset}
+                  </Copy>
+                ) : (
+                  <>
+                    <View
+                      style={[
+                        s.inputRow,
+                        touched &&
+                          !!preview?.error && { borderColor: c.negative },
+                      ]}
+                    >
+                      <TextInput
+                        accessibilityLabel="Claim amount"
+                        aria-describedby="amount-help"
+                        aria-invalid={touched && !!preview?.error}
+                        value={amount}
+                        onChangeText={(value) => {
+                          setAmount(value);
+                          setReview(null);
+                        }}
+                        onBlur={() => setTouched(true)}
+                        inputMode="decimal"
+                        autoCorrect={false}
+                        maxLength={80}
+                        placeholder="0.00"
+                        style={s.input}
+                      />
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Use maximum available amount"
+                        style={s.max}
+                        onPress={() => {
+                          setAmount(asset.available);
+                          setTouched(true);
+                        }}
+                      >
+                        <Copy style={{ color: c.accent }} weight="semibold">
+                          Max
+                        </Copy>
+                      </Pressable>
+                    </View>
+                    <Copy
+                      nativeID="amount-help"
+                      role={touched && preview?.error ? "alert" : undefined}
+                      style={[
+                        s.help,
+                        {
+                          color:
+                            touched && preview?.error ? c.negative : c.muted,
+                        },
+                      ]}
+                    >
+                      {touched && preview?.error
+                        ? preview.error
+                        : `Available: ${asset.available} ${asset.asset} · Minimum: ${options.data.minAmount}`}
+                    </Copy>
+                  </>
+                )}
+                <View style={s.rule} />
+                <Copy weight="semibold" style={s.label}>
+                  Destination
+                </Copy>
+                {reviewing ? (
+                  <Copy>
+                    {
+                      options.data.destinations.find(
+                        (d) => d.id === destinationId,
+                      )?.label
+                    }
+                  </Copy>
+                ) : (
+                  options.data.destinations.map((d) => (
+                    <Pressable
+                      key={d.id}
+                      accessibilityRole="button"
+                      aria-pressed={destinationId === d.id}
+                      onPress={() => setDestination(d.id)}
+                      style={{
+                        borderWidth: 1,
+                        borderColor:
+                          destinationId === d.id ? c.accent : c.border,
+                        backgroundColor:
+                          destinationId === d.id ? c.promo : c.card,
+                        padding: 14,
+                        borderRadius: 12,
+                        marginBottom: 8,
+                      }}
+                    >
+                      <Copy>{d.label}</Copy>
+                    </Pressable>
+                  ))
+                )}
+                {!options.data.destinations.length && (
+                  <Copy>No destinations available.</Copy>
+                )}
+                <View style={s.rule} />
+                <View style={s.line}>
+                  <Copy muted>Fixed fee</Copy>
+                  <Copy>
+                    {options.data.fee} {asset.asset}
+                  </Copy>
+                </View>
+                <View style={s.line}>
+                  <Copy weight="semibold">You receive</Copy>
+                  <Copy weight="semibold">
+                    {preview?.receive ?? "—"} {asset.asset}
+                  </Copy>
+                </View>
+                <Copy muted style={s.small}>
+                  Snapshot: {new Date(balances.data!.asOf).toUTCString()}. The
+                  server checks your available funds again on submission.
                 </Copy>
               </View>
-              <View style={[s.inputRow, error && { borderColor: c.negative }]}>
-                <TextInput
-                  ref={input}
-                  value={amount}
-                  onChangeText={setAmount}
-                  onBlur={() => {
-                    if (amount) setTouched(true);
-                  }}
-                  placeholder="0.00"
-                  placeholderTextColor={c.muted}
-                  style={s.input}
-                  inputMode="decimal"
-                  maxLength={80}
-                  accessibilityLabel={`Amount to claim in ${asset.asset}`}
-                  aria-labelledby="amount-label"
-                  aria-describedby="amount-help"
-                  aria-invalid={!!error}
-                  onSubmitEditing={review}
-                />
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Use maximum available amount"
-                  onPress={() => {
-                    setAmount(asset.available);
-                    setTouched(true);
-                  }}
-                  style={({ pressed }) => [s.max, pressed && { opacity: 0.6 }]}
-                >
-                  <Copy
-                    weight="semibold"
-                    style={{ color: c.accent, fontSize: 12 }}
+              <View style={{ gap: 10, marginTop: 20 }}>
+                {review !== null && !reviewing && (
+                  <Copy role="alert">
+                    Claim details changed. Please review them again.
+                  </Copy>
+                )}
+                {reviewing ? (
+                  <>
+                    <Action
+                      busy={busy}
+                      disabled={
+                        !valid ||
+                        options.isFetching ||
+                        balances.isFetching ||
+                        !!error
+                      }
+                      onPress={() => {
+                        if (valid && signature === review && preview?.amount)
+                          void workflow.submit({
+                            asset: asset.asset,
+                            amount: preview.amount,
+                            destinationId,
+                          });
+                      }}
+                    >
+                      Confirm claim
+                    </Action>
+                    <Action variant="quiet" onPress={() => setReview(null)}>
+                      Edit amount
+                    </Action>
+                  </>
+                ) : (
+                  <Action
+                    disabled={
+                      !valid ||
+                      options.isFetching ||
+                      balances.isFetching ||
+                      !!error
+                    }
+                    onPress={() => {
+                      setTouched(true);
+                      if (valid) setReview(signature);
+                    }}
                   >
-                    Max
-                  </Copy>
-                </Pressable>
+                    Review claim
+                  </Action>
+                )}
               </View>
-              <Copy
-                nativeID="amount-help"
-                accessibilityLiveRegion="polite"
-                style={[
-                  s.help,
-                  error ? { color: c.negative } : { color: c.muted },
-                ]}
-              >
-                {error ?? `Available: ${asset.available} ${asset.asset}`}
-              </Copy>
-              <View style={s.rule} />
-              <Copy weight="semibold" style={{ marginBottom: 10 }}>
-                Receive in
-              </Copy>
-              <View style={s.wallet}>
-                <View style={s.walletIcon}>
-                  <Icon name="wallet" size={20} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Copy weight="semibold">My wallet</Copy>
-                  <Copy muted style={s.small}>
-                    0x8f3e…a91c
-                  </Copy>
-                </View>
-                <Icon name="check" size={18} color={c.positive} />
-              </View>
-              <Copy muted style={[s.small, { marginTop: 10 }]}>
-                Sample destination · Wallet selected for this demo
-              </Copy>
-              <View style={s.rule} />
-              <View style={s.line}>
-                <Copy muted>Claim fee</Copy>
-                <Copy>
-                  {asset.fee} {asset.asset}
-                </Copy>
-              </View>
-              <View style={s.line}>
-                <Copy muted>Minimum claim</Copy>
-                <Copy>
-                  {asset.min} {asset.asset}
-                </Copy>
-              </View>
-              <View style={s.receive}>
-                <Copy weight="semibold">You receive</Copy>
-                <Copy weight="semibold" style={s.receiveValue}>
-                  {preview.receive ?? "—"}{" "}
-                  <Copy style={s.small}>{asset.asset}</Copy>
-                </Copy>
-              </View>
-            </View>
-            <View style={s.note}>
-              <Icon name="info" size={17} color={c.muted} />
-              <Copy muted style={[s.small, { flex: 1 }]}>
-                The fee is deducted from your claim amount.
-              </Copy>
-            </View>
-            <Action icon="arrow" onPress={review}>
-              Review claim
-            </Action>
-          </>
-        ) : stage === "review" ? (
-          <>
-            <View style={s.receipt}>
-              <Status tone="warning">Review your claim</Status>
-              <Copy muted style={{ marginTop: 16 }}>
-                You receive
-              </Copy>
-              <Copy style={s.receiptAmount}>{preview.receive}</Copy>
-              <Copy weight="semibold" style={{ color: c.accent }}>
-                {asset.asset}
-              </Copy>
-              <View style={s.rule} />
-              <View style={s.line}>
-                <Copy muted>Claim amount</Copy>
-                <Copy weight="semibold">
-                  {amount} {asset.asset}
-                </Copy>
-              </View>
-              <View style={s.line}>
-                <Copy muted>Fee included</Copy>
-                <Copy>
-                  {asset.fee} {asset.asset}
-                </Copy>
-              </View>
-              <View style={s.line}>
-                <Copy muted>Destination</Copy>
-                <Copy>0x8f3e…a91c</Copy>
-              </View>
-            </View>
-            <Copy muted style={s.disclaimer}>
-              Demo only. Confirming previews the claim status; no funds are
-              moved.
-            </Copy>
-            <Action icon="check" onPress={() => setStage("pending")}>
-              Confirm demo claim
-            </Action>
-            <Action variant="quiet" onPress={() => setStage("edit")}>
-              Edit amount
-            </Action>
-          </>
-        ) : (
-          <>
-            <View style={s.receipt}>
-              <View
-                style={[
-                  s.resultIcon,
-                  {
-                    backgroundColor:
-                      stage === "failed"
-                        ? c.negativeSoft
-                        : stage === "completed"
-                          ? c.positiveSoft
-                          : c.promo,
-                  },
-                ]}
-              >
-                <Icon
-                  name={
-                    stage === "failed"
-                      ? "error"
-                      : stage === "completed"
-                        ? "check"
-                        : "clock"
-                  }
-                  size={30}
-                  color={
-                    stage === "failed"
-                      ? c.negative
-                      : stage === "completed"
-                        ? c.positive
-                        : c.accent
-                  }
-                />
-              </View>
-              <Status
-                tone={
-                  stage === "failed"
-                    ? "negative"
-                    : stage === "completed"
-                      ? "positive"
-                      : "warning"
-                }
-              >
-                {stage === "failed"
-                  ? "Failed · sample"
-                  : stage === "completed"
-                    ? "Completed · sample"
-                    : "Pending · sample"}
-              </Status>
-              <Copy style={s.receiptAmount}>{preview.receive}</Copy>
-              <Copy weight="semibold" style={{ color: c.accent }}>
-                {asset.asset}
-              </Copy>
-              <Copy muted style={{ marginTop: 12 }}>
-                {stage === "failed"
-                  ? "In a live claim, the claim amount would return to your available balance."
-                  : stage === "completed"
-                    ? "This previews a completed payment to your wallet."
-                    : "In a live claim, this screen would follow its status until it completes or fails."}
-              </Copy>
-              <View style={s.rule} />
-              <View style={s.line}>
-                <Copy muted>Destination</Copy>
-                <Copy>0x8f3e…a91c</Copy>
-              </View>
-              <View style={s.line}>
-                <Copy muted>Claim amount</Copy>
-                <Copy>
-                  {amount} {asset.asset}
-                </Copy>
-              </View>
-            </View>
-            {stage === "pending" && (
-              <View style={s.demoControls}>
-                <Copy weight="semibold" style={s.small}>
-                  Preview an outcome
-                </Copy>
-                <View style={s.outcomes}>
-                  <View style={{ flex: 1 }}>
-                    <Action
-                      variant="secondary"
-                      onPress={() => setStage("completed")}
-                    >
-                      Completed
-                    </Action>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Action
-                      variant="secondary"
-                      onPress={() => setStage("failed")}
-                    >
-                      Failed
-                    </Action>
-                  </View>
-                </View>
-              </View>
-            )}
-            <Action onPress={reset}>Try another demo claim</Action>
-          </>
-        )}
-      </View>
-    </Shell>
+            </>
+          )}
+        </>
+      )}
+    </View>
   );
 }
 const s = StyleSheet.create({

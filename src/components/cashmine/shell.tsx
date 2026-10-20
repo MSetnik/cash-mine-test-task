@@ -5,7 +5,8 @@ import Head from "expo-router/head";
 import type { ReactNode } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Copy, Icon, Status } from "./ui";
+import { useSession } from "@/state/session";
+import { Action, Copy, Icon } from "./ui";
 
 export function Shell({
   children,
@@ -14,6 +15,7 @@ export function Shell({
   children: ReactNode;
   title: string;
 }) {
+  const { changeToken } = useSession();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   return (
@@ -22,7 +24,7 @@ export function Shell({
         <title>{title} · CashMine</title>
         <meta
           name="description"
-          content="CashMine payback app — interactive visual preview with demo data."
+          content="CashMine payback balances, claims, and activity."
         />
       </Head>
       <ScrollView
@@ -39,13 +41,15 @@ export function Shell({
                 accessibilityLabel="CashMine"
               />
             </Link>
-            <Status>Demo data</Status>
+            <Action variant="quiet" onPress={changeToken}>
+              Change token
+            </Action>
           </View>
           {children}
           <View style={s.footer}>
             <Icon name="shield" size={15} color={c.muted} />
             <Copy muted style={{ fontSize: 11 }}>
-              A preview with sample balances. No real transactions.
+              Connected to CashMine test API · Test funds only.
             </Copy>
           </View>
         </View>

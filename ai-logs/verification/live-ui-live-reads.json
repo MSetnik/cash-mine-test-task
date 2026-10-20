@@ -1,0 +1,10 @@
+{
+  "testedAt": "2026-10-20",
+  "target": "CashMine task API",
+  "attempts": [
+    { "getBalances": { "status": 503, "code": "SERVER" } },
+    { "getBalances": { "status": 200, "validatedItems": 3 }, "getClaimOptions": { "status": 503, "code": "SERVER" } }
+  ],
+  "result": "Partial live verification; API returned intermittent server errors.",
+  "liveClaimSubmission": "Not performed; controlled browser responses cover submission and tracking."
+}

@@ -1,11 +1,5 @@
 import { Link, router } from "expo-router";
-import { useEffect, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  View,
-} from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import { ActivityRow } from "@/components/cashmine/activity-row";
 import { Shell } from "@/components/cashmine/shell";
 import {
@@ -16,24 +10,24 @@ import {
   Status,
 } from "@/components/cashmine/ui";
 import { palette as c, type as font } from "@/constants/cashmine";
-import { demoActivity, demoAssets } from "@/data/demo";
+import { assetPresentation } from "@/data/presentation";
+import { usdTotals } from "@/lib/amounts";
+import { useBalances, useOperation } from "@/state/session";
+import { useActivity } from "@/state/activity";
+import {
+  ClaimStatusCard,
+  RequestError,
+  SnapshotTime,
+} from "@/components/cashmine/live-state";
 
 export default function HomeScreen() {
-  const [refreshing, setRefreshing] = useState(false);
-  const [refreshed, setRefreshed] = useState(false);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(
-    () => () => {
-      if (timer.current) clearTimeout(timer.current);
-    },
-    [],
-  );
+  const balances = useBalances();
+  const activity = useActivity();
+  const { operation } = useOperation();
+  const refreshing = balances.isFetching;
+  const totals = balances.data ? usdTotals(balances.data.items) : null;
   function refresh() {
-    setRefreshing(true);
-    timer.current = setTimeout(() => {
-      setRefreshing(false);
-      setRefreshed(true);
-    }, 700);
+    void balances.refetch();
   }
   return (
     <Shell title="Balances">
@@ -46,7 +40,7 @@ export default function HomeScreen() {
         </View>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Refresh demo balances"
+          accessibilityLabel="Refresh balances"
           disabled={refreshing}
           onPress={refresh}
           style={({ pressed }) => [s.refresh, pressed && { opacity: 0.6 }]}
@@ -58,140 +52,137 @@ export default function HomeScreen() {
           )}
         </Pressable>
       </View>
-      <View style={s.balanceCard}>
-        <View style={s.balanceTop}>
-          <Copy style={{ color: c.darkMuted }}>Total payback</Copy>
-          <Copy style={s.currency}>USD</Copy>
-        </View>
-        <Copy style={s.total}>
-          $1,274<Copy style={s.cents}>.68</Copy>
-        </Copy>
-        <Copy style={s.balanceCaption}>
-          Your available, pending, and claiming balances.
-        </Copy>
-        <View
-          style={s.allocation}
-          accessibilityLabel="Available 1,170 dollars and 81 cents, pending 71 dollars and 87 cents, claiming 32 dollars"
-        >
-          <View style={[s.bar, { flex: 91.85, backgroundColor: c.brand }]} />
-          <View style={[s.bar, { flex: 5.64, backgroundColor: c.darkMuted }]} />
-          <View
-            style={[s.bar, { flex: 2.51, backgroundColor: c.darkBorder }]}
-          />
-        </View>
-        <View style={s.stats}>
-          {[
-            ["Available", "$1,170.81", c.brand],
-            ["Pending", "$71.87", c.darkMuted],
-            ["Claiming", "$32.00", c.darkBorder],
-          ].map(([label, amount, color]) => (
-            <View style={s.stat} key={label}>
-              <View style={s.statLabel}>
-                <View style={[s.dot, { backgroundColor: color }]} />
-                <Copy style={s.statText}>{label}</Copy>
+      <ClaimStatusCard />
+      <RequestError error={balances.error} retry={refresh} />
+      {balances.isPending && <Copy>Loading balances…</Copy>}
+      {totals && (
+        <View style={s.balanceCard}>
+          <View style={s.balanceTop}>
+            <Copy style={{ color: c.darkMuted }}>Total payback</Copy>
+            <Copy style={s.currency}>USD</Copy>
+          </View>
+          <Copy style={s.total}>${totals.total}</Copy>
+          <Copy style={s.balanceCaption}>
+            Your available, pending, and claiming balances.
+          </Copy>
+          <View style={s.stats}>
+            {[
+              ["Available", `$${totals.available}`, c.brand],
+              ["Pending", `$${totals.pending}`, c.darkMuted],
+              ["Claiming", `$${totals.claiming}`, c.darkBorder],
+            ].map(([label, amount, color]) => (
+              <View style={s.stat} key={label}>
+                <View style={s.statLabel}>
+                  <View style={[s.dot, { backgroundColor: color }]} />
+                  <Copy style={s.statText}>{label}</Copy>
+                </View>
+                <Copy style={s.statValue}>{amount}</Copy>
               </View>
-              <Copy style={s.statValue}>{amount}</Copy>
-            </View>
-          ))}
+            ))}
+          </View>
+          <Action
+            disabled={!!operation}
+            icon="arrow"
+            onPress={() => router.push("/claim")}
+          >
+            Claim payback
+          </Action>
         </View>
-        <Action icon="arrow" onPress={() => router.push("/claim")}>
-          Claim payback
-        </Action>
-      </View>
+      )}
       <View style={s.freshness} accessibilityLiveRegion="polite">
-        <View style={[s.dot, { backgroundColor: c.positive }]} />
-        <Copy muted style={{ fontSize: 11 }}>
-          {refreshing
-            ? "Refreshing demo balances…"
-            : refreshed
-              ? "Demo refreshed just now · Sample balances unchanged"
-              : "Sample snapshot · 20 Oct 2026, 10:45 UTC"}
-        </Copy>
+        <SnapshotTime asOf={balances.data?.asOf} refreshing={refreshing} />
       </View>
       <View nativeID="dashboard-columns" style={s.columns}>
         <View style={s.column}>
           <SectionTitle
             aside={
               <Copy muted style={s.small}>
-                3 assets
+                {balances.data?.items.length ?? "—"} assets
               </Copy>
             }
           >
             Your assets
           </SectionTitle>
-          {demoAssets.map((asset) => (
-            <Pressable
-              key={asset.asset}
-              accessibilityRole="button"
-              accessibilityLabel={`Claim ${asset.name}`}
-              onPress={() =>
-                router.push({
-                  pathname: "/claim",
-                  params: { asset: asset.asset },
-                })
-              }
-              style={({ pressed }) => [
-                s.assetCard,
-                pressed && { opacity: 0.72 },
-              ]}
-            >
-              <View style={s.assetTop}>
-                <View style={[s.coin, { backgroundColor: asset.tint }]}>
-                  <Copy
-                    style={{
-                      color: asset.color,
-                      fontSize: 25,
-                      fontFamily: font.semibold,
-                    }}
-                  >
-                    {asset.symbol}
-                  </Copy>
+          {balances.data?.items.map((balance) => {
+            const asset = {
+              ...balance,
+              ...assetPresentation(balance.asset),
+              usd: usdTotals([balance]).total,
+            };
+            return (
+              <Pressable
+                key={asset.asset}
+                accessibilityRole="button"
+                accessibilityLabel={`Claim ${asset.name}`}
+                onPress={() =>
+                  router.push({
+                    pathname: "/claim",
+                    params: { asset: asset.asset },
+                  })
+                }
+                style={({ pressed }) => [
+                  s.assetCard,
+                  pressed && { opacity: 0.72 },
+                ]}
+              >
+                <View style={s.assetTop}>
+                  <View style={[s.coin, { backgroundColor: asset.tint }]}>
+                    <Copy
+                      style={{
+                        color: asset.color,
+                        fontSize: 25,
+                        fontFamily: font.semibold,
+                      }}
+                    >
+                      {asset.symbol}
+                    </Copy>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Copy weight="semibold" style={{ fontSize: 15 }}>
+                      {asset.name}
+                    </Copy>
+                    <Copy muted style={s.small}>
+                      {asset.asset}
+                    </Copy>
+                  </View>
+                  <View style={{ alignItems: "flex-end" }}>
+                    <Copy weight="semibold" style={{ fontSize: 17 }}>
+                      ${asset.usd}
+                    </Copy>
+                    <Copy muted style={s.small}>
+                      Total value
+                    </Copy>
+                  </View>
+                  <Icon name="right" size={17} color={c.muted} />
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Copy weight="semibold" style={{ fontSize: 15 }}>
-                    {asset.name}
-                  </Copy>
-                  <Copy muted style={s.small}>
-                    {asset.asset}
-                  </Copy>
-                </View>
-                <View style={{ alignItems: "flex-end" }}>
-                  <Copy weight="semibold" style={{ fontSize: 17 }}>
-                    ${asset.usd}
-                  </Copy>
-                  <Copy muted style={s.small}>
-                    Total value
-                  </Copy>
-                </View>
-                <Icon name="right" size={17} color={c.muted} />
-              </View>
-              <View style={s.assetLine} />
-              <View style={s.assetDetail}>
-                <Copy muted style={s.small}>
-                  Available
-                </Copy>
-                <Copy weight="semibold" style={s.small}>
-                  {asset.available} {asset.asset}
-                </Copy>
-              </View>
-              <View style={s.assetDetail}>
-                <Copy muted style={s.small}>
-                  Pending
-                </Copy>
-                <Copy muted style={s.small}>
-                  {asset.pending} {asset.asset}
-                </Copy>
-              </View>
-              {asset.claiming !== "0" && (
+                <View style={s.assetLine} />
                 <View style={s.assetDetail}>
-                  <Copy style={[s.small, { color: c.accent }]}>Claiming</Copy>
-                  <Copy style={[s.small, { color: c.accent }]}>
-                    {asset.claiming} {asset.asset}
+                  <Copy muted style={s.small}>
+                    Available
+                  </Copy>
+                  <Copy weight="semibold" style={s.small}>
+                    {asset.available} {asset.asset}
                   </Copy>
                 </View>
-              )}
-            </Pressable>
-          ))}
+                <View style={s.assetDetail}>
+                  <Copy muted style={s.small}>
+                    Pending
+                  </Copy>
+                  <Copy muted style={s.small}>
+                    {asset.pending} {asset.asset}
+                  </Copy>
+                </View>
+                {asset.claiming !== "0" && (
+                  <View style={s.assetDetail}>
+                    <Copy style={[s.small, { color: c.accent }]}>Claiming</Copy>
+                    <Copy style={[s.small, { color: c.accent }]}>
+                      {asset.claiming} {asset.asset}
+                    </Copy>
+                  </View>
+                )}
+              </Pressable>
+            );
+          })}
         </View>
         <View style={s.column}>
           <SectionTitle
@@ -203,8 +194,13 @@ export default function HomeScreen() {
           >
             Recent activity
           </SectionTitle>
+          <RequestError
+            error={activity.error}
+            retry={() => void activity.refetch()}
+          />
+          {activity.isPending && <Copy>Loading activity…</Copy>}
           <View style={s.activityCard}>
-            {demoActivity.slice(0, 3).map((item) => (
+            {activity.items.slice(0, 3).map((item) => (
               <ActivityRow key={item.id} item={item} />
             ))}
           </View>
@@ -271,7 +267,7 @@ const s = StyleSheet.create({
   total: {
     color: c.card,
     fontFamily: font.semibold,
-    fontSize: 49,
+    fontSize: 39,
     lineHeight: 64,
     letterSpacing: -2,
     marginTop: 8,
@@ -297,7 +293,12 @@ const s = StyleSheet.create({
     marginBottom: 18,
   },
   bar: { borderRadius: 3 },
-  stats: { flexDirection: "row", gap: 14, marginBottom: 24 },
+  stats: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 14,
+    marginVertical: 24,
+  },
   stat: { flex: 1, gap: 5 },
   statLabel: { flexDirection: "row", alignItems: "center", gap: 5 },
   dot: { height: 5, width: 5, borderRadius: 3 },
