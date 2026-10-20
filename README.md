@@ -28,14 +28,15 @@ The static web build is written to `dist/`.
 
 ## What works
 
-- A CashMine-branded balances dashboard with sample asset balances and USD totals.
-- An interactive demo claim flow with asset selection, amount validation, Max, fee review, confirmation, and sample pending/completed/failed outcomes.
-- Activity filters, date groups, and local pagination with dummy transactions.
-- A typed Axios client for all five CashMine operations, with response validation, cancellation, timeouts, structured errors, and focused contract tests. See [API structure and integration guidance](docs/api-client.md).
-- File-based navigation in `src/app/`, with strict TypeScript and `@/` imports.
-- Web development and static export.
+- Runtime token entry, browser persistence, token replacement, and isolated session caches. Enter your own CashMine test API token when prompted.
+- Live balances, clearly labeled USD totals, server snapshot time, refresh, and error/retry states.
+- Live claim rules and destinations, exact decimal validation, Max, fee/receive review, and confirmation.
+- Persisted idempotent submission, user-triggered same-key recovery after an unknown outcome or reload, and polling to completed/failed. Another claim stays blocked until settlement appears in a newer balance snapshot.
+- Live cursor-paginated activity with filters and duplicate-ID removal.
+- Axios transport and TanStack Query server state, with shared session rate-limit handling.
+- Unit and contract tests, strict TypeScript, and a static Expo web export.
 
-The screens remain a visual prototype using dummy data. They do not call the API or create real claims, and demo claims do not change fixture balances. The API client has been checked against the live read endpoints, but connecting it to runtime token entry, balances, claim submission/recovery, and activity pagination remains to be implemented.
+Use one active tab per token for claiming. Token replacement keeps unresolved requests scoped to their original token. Test funds come from the live task API; no sample balances are substituted on errors. Claim failure/recovery scenarios are verified with controlled responses, while live verification uses read endpoints only. See [decisions and remaining work](NOTES.md) and [API guidance](docs/api-client.md).
 
 Brand colors and the public logo are taken from [CashMine](https://cashmine.io/); see `DESIGN.md` for sources and visual conventions. Inter is bundled with its OFL license.
 

@@ -1,21 +1,24 @@
-import { strings, activityDate } from "@/localization";
+import { strings } from "@/localization";
 import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { ActivityRow } from "@/components/cashmine/activity-row";
 import { Shell } from "@/components/cashmine/shell";
 import { Action, Copy, Icon } from "@/components/cashmine/ui";
 import { palette as c, typography as font } from "@/styles/theme";
-import { demoActivity, type ActivityKind } from "@/data/demo";
+import { useActivity } from "@/state/activity";
+import { RequestError } from "@/components/cashmine/live-state";
 
 export default function ActivityScreen() {
-  const [filter, setFilter] = useState<"All" | ActivityKind>("All");
-  const [limit, setLimit] = useState(4);
-  const items = demoActivity.filter(
+  const [filter, setFilter] = useState<
+    "All" | "Payback" | "Claim" | "Reversal"
+  >("All");
+  const query = useActivity();
+  const items = query.items.filter(
     (item) => filter === "All" || item.kind === filter,
   );
-  const visible = items.slice(0, limit);
+  const visible = items;
   return (
-    <Shell title={strings.activity.pageTitle}>
+    <Shell title="Activity">
       <View style={s.page}>
         <Copy style={s.eyebrow}>{strings.activity.eyebrow}</Copy>
         <Copy role="heading" aria-level={1} style={s.title}>
@@ -24,6 +27,22 @@ export default function ActivityScreen() {
         <Copy muted style={s.subtitle}>
           {strings.activity.subtitle}
         </Copy>
+        <RequestError
+          error={query.error}
+          retry={() => {
+            void (query.isFetchNextPageError
+              ? query.fetchNextPage()
+              : query.refetch());
+          }}
+        />
+        <Action
+          variant="quiet"
+          busy={query.isFetching && !query.isFetchingNextPage}
+          onPress={() => void query.refetch()}
+        >
+          Refresh activity
+        </Action>
+        {query.isPending && <Copy>Loading activity…</Copy>}
         <View style={s.filters}>
           {(["All", "Payback", "Claim", "Reversal"] as const).map((kind) => (
             <Pressable
@@ -33,7 +52,6 @@ export default function ActivityScreen() {
               aria-pressed={filter === kind}
               onPress={() => {
                 setFilter(kind);
-                setLimit(4);
               }}
               style={({ pressed }) => [
                 s.filter,
@@ -48,7 +66,11 @@ export default function ActivityScreen() {
                   color: filter === kind ? c.card : c.muted,
                 }}
               >
-                {strings.activity.filters[kind]}
+                {kind === "Claim"
+                  ? "Claims"
+                  : kind === "Reversal"
+                    ? "Reversals"
+                    : kind}
               </Copy>
             </Pressable>
           ))}
@@ -58,7 +80,7 @@ export default function ActivityScreen() {
             <View key={item.id}>
               {(index === 0 || visible[index - 1].date !== item.date) && (
                 <Copy muted style={s.date}>
-                  {activityDate(item.date)}
+                  {item.date} · UTC
                 </Copy>
               )}
               <View
@@ -80,7 +102,7 @@ export default function ActivityScreen() {
             </View>
           ))}
         </View>
-        {visible.length === 0 && (
+        {visible.length === 0 && !query.isPending && !query.error && (
           <View style={s.empty}>
             <Icon name="activity" color={c.muted} size={32} />
             <Copy weight="semibold">{strings.activity.emptyTitle}</Copy>
@@ -88,12 +110,13 @@ export default function ActivityScreen() {
           </View>
         )}
         <Copy muted style={s.count}>
-          {strings.activity.count(visible.length, items.length)}
+          {visible.length} matching transactions loaded
         </Copy>
-        {limit < items.length && (
+        {query.hasNextPage && (
           <Action
             variant="secondary"
-            onPress={() => setLimit((value) => value + 4)}
+            busy={query.isFetchingNextPage}
+            onPress={() => void query.fetchNextPage()}
           >
             {strings.activity.loadMore}
           </Action>

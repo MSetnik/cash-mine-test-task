@@ -1,10 +1,9 @@
-import { strings, activityTitle, activitySubtitle } from "@/localization";
 import { palette as c } from "@/styles/theme";
-import type { ActivityItem } from "@/data/demo";
+import type { PresentedActivity } from "@/data/presentation";
 import { StyleSheet, View } from "react-native";
 import { Copy, Icon, Status } from "./ui";
 
-export function ActivityRow({ item }: { item: ActivityItem }) {
+export function ActivityRow({ item }: { item: PresentedActivity }) {
   return (
     <View style={s.row}>
       <View
@@ -28,7 +27,7 @@ export function ActivityRow({ item }: { item: ActivityItem }) {
       <View style={s.content}>
         <View style={s.top}>
           <Copy weight="semibold" style={s.title}>
-            {activityTitle(item)}
+            {item.title}
           </Copy>
           <Copy
             weight="semibold"
@@ -38,7 +37,7 @@ export function ActivityRow({ item }: { item: ActivityItem }) {
           </Copy>
         </View>
         <Copy muted style={s.subtitle}>
-          {activitySubtitle(item)}
+          {item.subtitle}
         </Copy>
         <Status
           tone={
@@ -49,7 +48,7 @@ export function ActivityRow({ item }: { item: ActivityItem }) {
                 : "positive"
           }
         >
-          {strings.common.statuses[item.status]}
+          {item.status}
         </Status>
       </View>
     </View>

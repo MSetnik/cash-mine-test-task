@@ -1,0 +1,19 @@
+# Decisions
+
+- **Amounts:** the owner selected decimal.js over bigint smallest-unit arithmetic. Strings stay strings at the API boundary; strict input validation rejects whitespace, signs, exponents, incomplete decimals, and excess precision. Decimal arithmetic avoids custom price/asset scaling. Calculation precision grows with operand size. USD totals include **available + pending + claiming**, with half-up rounding to two places only for display. Max uses the entire available amount; the fixed fee is subtracted exactly once. Individually rounded category totals may differ from the rounded aggregate by a cent.
+- **Balances after a claim:** we compared server snapshots plus explicit status with a local reservation overlay. The owner chose snapshots to avoid speculative subtraction and later jumps. A visible saved claim explains unchanged numbers; another claim stays blocked until a terminal status and a server `asOf` at least as new as settlement. Failed claims follow the same rule while the server returns their amount. Refresh completion alone does not establish freshness.
+- **Unknown outcomes:** the owner chose user-triggered same-key recovery over automatic replay with backoff. Persist the exact confirmed body and key before sending. A timeout, ambiguous error, or reload without a claim ID offers recovery, never a new key. Known IDs resume polling; terminal status stops claim polling. A failed recovery, including 401 or 409, cannot disprove earlier acceptance. New claims remain blocked. Token-scoped storage and separate query caches prevent cross-token recovery. Server rate limits gate all requests for that session.
+- Axios handles HTTP; TanStack Query handles reads, refresh, polling, and cursor pagination. The small persisted claim workflow owns mutation safety independently of the query cache. The owner's decisions and alternatives are preserved in [the integration conversation](ai-logs/2026-10-20-live-data-integration.md).
+
+# Working with AI
+
+- **Prompt refinement:** the initial visual direction suggested navy and gold. The owner redirected it to analyze CashMine's actual brand, producing orange and warm neutral surfaces. See [visual conversation](ai-logs/2026-10-20-dummy-visuals.md#assistant).
+- **Wrong output caught:** browser checks found broken navigation and a React hydration mismatch on an asset-specific claim URL. The AI corrected link composition and hydration-safe initial state, then rebuilt and reran the checks. The owner also caught card spacing that looked like missing padding; testing traced it to parent flex sizing. See [visual evidence and tool events](ai-logs/2026-10-20-dummy-visuals.md).
+- **Disagreement:** the owner challenged fetch's benefits against the amount of custom networking code. The AI accepted the criticism, switched to Axios on the requested branch, and retained contract tests and sanitized errors. See [Axios conversation](ai-logs/2026-10-20-axios-migration.md).
+
+# Not done / known issues
+
+- No public deployment yet. The exported web build is verified locally; publishing and the submission email remain separate work.
+- Live read verification has encountered intermittent API 503 responses; report API unavailability if it persists. Claim creation, replay, and settlement are tested with controlled browser responses, not a live POST.
+- Use one active tab per token for claiming. Same-tab duplicate taps and reloads are protected; atomic coordination across multiple tabs is not implemented. Browser storage must remain available; deleting it discards recovery information. Native iOS/Android execution is outside scope.
+- Existing Expo dependency advisories remain. Checks ran on the available Node 25.5 runtime, although Node 24 LTS is recommended. A future pass should verify the supported runtime and add durable end-to-end CI and storage-event/multi-tab coordination.

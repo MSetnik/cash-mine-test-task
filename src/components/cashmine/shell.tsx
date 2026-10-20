@@ -1,4 +1,3 @@
-import { strings } from "@/localization";
 import { palette as c, layout } from "@/styles/theme";
 import { Image } from "expo-image";
 import { Link, usePathname } from "expo-router";
@@ -6,7 +5,8 @@ import Head from "expo-router/head";
 import type { ReactNode } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Copy, Icon, Status } from "./ui";
+import { useSession } from "@/state/session";
+import { Action, Copy, Icon } from "./ui";
 
 export function Shell({
   children,
@@ -15,13 +15,17 @@ export function Shell({
   children: ReactNode;
   title: string;
 }) {
+  const { changeToken } = useSession();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   return (
     <View style={s.root}>
       <Head>
-        <title>{strings.shell.pageTitle(title)}</title>
-        <meta name="description" content={strings.shell.description} />
+        <title>{title} · CashMine</title>
+        <meta
+          name="description"
+          content="CashMine payback balances, claims, and activity."
+        />
       </Head>
       <ScrollView
         contentContainerStyle={{ paddingBottom: 110 + insets.bottom }}
@@ -29,21 +33,23 @@ export function Shell({
       >
         <View style={[s.container, { paddingTop: Math.max(20, insets.top) }]}>
           <View style={s.header}>
-            <Link href="/" accessibilityLabel={strings.shell.homeLabel}>
+            <Link href="/" accessibilityLabel="CashMine home">
               <Image
                 source={require("@/assets/brand/cashmine-logo.webp")}
                 style={s.logo}
                 contentFit="contain"
-                accessibilityLabel={strings.common.brand}
+                accessibilityLabel="CashMine"
               />
             </Link>
-            <Status>{strings.shell.demo}</Status>
+            <Action variant="quiet" onPress={changeToken}>
+              Change token
+            </Action>
           </View>
           {children}
           <View style={s.footer}>
             <Icon name="shield" size={15} color={c.muted} />
             <Copy muted style={{ fontSize: 11 }}>
-              {strings.shell.footer}
+              Connected to CashMine test API · Test funds only.
             </Copy>
           </View>
         </View>
@@ -54,21 +60,9 @@ export function Shell({
         <View style={s.nav}>
           {(
             [
-              {
-                href: "/",
-                label: strings.shell.navigation.balances,
-                icon: "wallet",
-              },
-              {
-                href: "/claim",
-                label: strings.shell.navigation.claim,
-                icon: "arrow",
-              },
-              {
-                href: "/activity",
-                label: strings.shell.navigation.activity,
-                icon: "activity",
-              },
+              { href: "/", label: "Balances", icon: "wallet" },
+              { href: "/claim", label: "Claim", icon: "arrow" },
+              { href: "/activity", label: "Activity", icon: "activity" },
             ] as const
           ).map((item) => {
             const selected = pathname === item.href;

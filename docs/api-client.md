@@ -1,6 +1,6 @@
 # API client structure
 
-Contract source: [CashMine task API](https://task-api.cashmine.io/docs), rechecked on 2026-10-20. This branch adds the endpoint foundation. Screens still use fixtures.
+Contract source: [CashMine task API](https://task-api.cashmine.io/docs), rechecked on 2026-10-20. The screens now use this client through a runtime session and TanStack Query.
 
 ## Requirement analysis
 
@@ -28,7 +28,7 @@ const controller = new AbortController();
 const snapshot = await api.getBalances({ signal: controller.signal });
 ```
 
-The token must come from the future runtime session layer. The client never reads `.env`, local storage, or Expo environment variables. Recreate it on token replacement, cancel previous reads, discard late responses, and clear the previous session's cache. Token-scoped client instances alone do not implement that UI lifecycle.
+The token comes from the runtime session layer. The client never reads `.env`, local storage, or Expo environment variables. Recreate it on token replacement, cancel previous reads, discard late responses, and clear the previous session's cache. Token-scoped client instances alone do not implement that UI lifecycle.
 
 | File | Responsibility |
 | --- | --- |
@@ -63,12 +63,12 @@ When available, both `retryAfterMs` and `Retry-After` are parsed; the longer non
 
 Chosen HTTP transport: **Axios**, following the owner's preference to reduce custom networking code. The original fetch implementation saved a dependency and used standard browser APIs, but those benefits did not outweigh maintaining our own request lifecycle. Axios adds a dependency and its error/configuration model; CashMine-specific validation and claim rules remain application code.
 
-Recommended next layer: **TanStack Query + this typed Axios client**.
+Implemented screen layer: **TanStack Query + this typed Axios client**.
 
 - The endpoint method signatures remain unchanged, so screen hooks do not depend on the underlying transport.
-- TanStack Query manages server-data state, shared cache, refresh, polling, and pagination. It would replace substantial custom hook/effect code and can use either fetch or Axios.
+- TanStack Query manages server-data state, shared cache, refresh, polling, and pagination. It manages the shared screen lifecycle while Axios supplies requests.
 - Query keys/cache lifetime must be scoped to the active session without putting the raw token in query keys. Explicit retry/refetch rules must honor rate limits and stop terminal claim polling.
-- Claim mutations should explicitly disable automatic retries. A separate, token-scoped operation record is still needed for reload-safe same-key recovery. This is a recommendation for the upcoming product decision, not an implemented recovery policy.
+- Claim mutations should explicitly disable automatic retries. A separate, token-scoped operation record is still needed for reload-safe same-key recovery. The implemented workflow persists this record before submission and offers user-triggered recovery.
 - Query cache freshness is not server snapshot freshness: continue displaying `asOf`.
 
 Sources: [Axios interceptors](https://axios-http.com/docs/interceptors), [TanStack defaults](https://tanstack.com/query/latest/docs/framework/react/guides/important-defaults), [mutation retries](https://tanstack.com/query/latest/docs/framework/react/guides/mutations), [fetch/Axios cancellation integration](https://tanstack.com/query/latest/docs/framework/react/guides/query-cancellation).
@@ -81,4 +81,4 @@ Live read checks observed an overlapping activity item between consecutive curso
 
 The live smoke check calls only balances, claim options, and activity pages. Axios results are recorded in [live-read verification](../ai-logs/verification/axios-client-live-reads.json) and [isolated browser verification](../ai-logs/verification/axios-browser.json). One live claim-options read returned a temporary 503; an explicit read-only retry passed. Live POST submission and settlement tracking have not been exercised.
 
-Runtime token UI/storage, React Query hooks, financial arithmetic, balance reconciliation, persistent claim recovery, and deployment are not implemented in this branch. The three required product decisions remain open; transport strings and error classification do not settle them.
+Runtime token UI/storage, TanStack Query hooks, decimal.js arithmetic, server-snapshot settlement checks, and persistent claim recovery are implemented. See `src/state/session.tsx`, `src/state/claim-workflow.ts`, and `src/lib/amounts.ts`. Deployment remains outstanding. The three owner-approved product decisions are documented in [NOTES](../NOTES.md).

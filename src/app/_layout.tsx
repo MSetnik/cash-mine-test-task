@@ -5,6 +5,7 @@ import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, View } from "react-native";
 import { palette } from "@/styles/theme";
 import "@/global.css";
+import { SessionGate } from "@/state/session";
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
@@ -31,13 +32,15 @@ export default function RootLayout() {
   return (
     <>
       <StatusBar style="dark" />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: palette.background },
-          animation: "none",
-        }}
-      />
+      <SessionGate>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: palette.background },
+            animation: "none",
+          }}
+        />
+      </SessionGate>
     </>
   );
 }
