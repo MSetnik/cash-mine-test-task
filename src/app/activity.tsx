@@ -1,9 +1,10 @@
+import { strings, activityDate } from "@/localization";
 import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { ActivityRow } from "@/components/cashmine/activity-row";
 import { Shell } from "@/components/cashmine/shell";
 import { Action, Copy, Icon } from "@/components/cashmine/ui";
-import { palette as c, type as font } from "@/constants/cashmine";
+import { palette as c, typography as font } from "@/styles/theme";
 import { demoActivity, type ActivityKind } from "@/data/demo";
 
 export default function ActivityScreen() {
@@ -14,14 +15,14 @@ export default function ActivityScreen() {
   );
   const visible = items.slice(0, limit);
   return (
-    <Shell title="Activity">
+    <Shell title={strings.activity.pageTitle}>
       <View style={s.page}>
-        <Copy style={s.eyebrow}>EVERY LITTLE BIT</Copy>
+        <Copy style={s.eyebrow}>{strings.activity.eyebrow}</Copy>
         <Copy role="heading" aria-level={1} style={s.title}>
-          Your payback, on record.
+          {strings.activity.title}
         </Copy>
         <Copy muted style={s.subtitle}>
-          The earnings, claims, and adjustments along the way.
+          {strings.activity.subtitle}
         </Copy>
         <View style={s.filters}>
           {(["All", "Payback", "Claim", "Reversal"] as const).map((kind) => (
@@ -47,11 +48,7 @@ export default function ActivityScreen() {
                   color: filter === kind ? c.card : c.muted,
                 }}
               >
-                {kind === "Claim"
-                  ? "Claims"
-                  : kind === "Reversal"
-                    ? "Reversals"
-                    : kind}
+                {strings.activity.filters[kind]}
               </Copy>
             </Pressable>
           ))}
@@ -61,7 +58,7 @@ export default function ActivityScreen() {
             <View key={item.id}>
               {(index === 0 || visible[index - 1].date !== item.date) && (
                 <Copy muted style={s.date}>
-                  {item.date} · UTC
+                  {activityDate(item.date)}
                 </Copy>
               )}
               <View
@@ -86,19 +83,19 @@ export default function ActivityScreen() {
         {visible.length === 0 && (
           <View style={s.empty}>
             <Icon name="activity" color={c.muted} size={32} />
-            <Copy weight="semibold">No activity yet</Copy>
-            <Copy muted>Payback and claims will appear here.</Copy>
+            <Copy weight="semibold">{strings.activity.emptyTitle}</Copy>
+            <Copy muted>{strings.activity.emptyDescription}</Copy>
           </View>
         )}
         <Copy muted style={s.count}>
-          {visible.length} of {items.length} sample transactions
+          {strings.activity.count(visible.length, items.length)}
         </Copy>
         {limit < items.length && (
           <Action
             variant="secondary"
             onPress={() => setLimit((value) => value + 4)}
           >
-            Load more activity
+            {strings.activity.loadMore}
           </Action>
         )}
       </View>

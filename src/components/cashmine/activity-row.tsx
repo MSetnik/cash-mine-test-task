@@ -1,4 +1,5 @@
-import { palette as c } from "@/constants/cashmine";
+import { strings, activityTitle, activitySubtitle } from "@/localization";
+import { palette as c } from "@/styles/theme";
 import type { ActivityItem } from "@/data/demo";
 import { StyleSheet, View } from "react-native";
 import { Copy, Icon, Status } from "./ui";
@@ -27,7 +28,7 @@ export function ActivityRow({ item }: { item: ActivityItem }) {
       <View style={s.content}>
         <View style={s.top}>
           <Copy weight="semibold" style={s.title}>
-            {item.title}
+            {activityTitle(item)}
           </Copy>
           <Copy
             weight="semibold"
@@ -37,7 +38,7 @@ export function ActivityRow({ item }: { item: ActivityItem }) {
           </Copy>
         </View>
         <Copy muted style={s.subtitle}>
-          {item.subtitle}
+          {activitySubtitle(item)}
         </Copy>
         <Status
           tone={
@@ -48,7 +49,7 @@ export function ActivityRow({ item }: { item: ActivityItem }) {
                 : "positive"
           }
         >
-          {item.status}
+          {strings.common.statuses[item.status]}
         </Status>
       </View>
     </View>

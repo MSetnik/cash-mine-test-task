@@ -1,4 +1,5 @@
-import { palette as c, layout } from "@/constants/cashmine";
+import { strings } from "@/localization";
+import { palette as c, layout } from "@/styles/theme";
 import { Image } from "expo-image";
 import { Link, usePathname } from "expo-router";
 import Head from "expo-router/head";
@@ -19,11 +20,8 @@ export function Shell({
   return (
     <View style={s.root}>
       <Head>
-        <title>{title} · CashMine</title>
-        <meta
-          name="description"
-          content="CashMine payback app — interactive visual preview with demo data."
-        />
+        <title>{strings.shell.pageTitle(title)}</title>
+        <meta name="description" content={strings.shell.description} />
       </Head>
       <ScrollView
         contentContainerStyle={{ paddingBottom: 110 + insets.bottom }}
@@ -31,21 +29,21 @@ export function Shell({
       >
         <View style={[s.container, { paddingTop: Math.max(20, insets.top) }]}>
           <View style={s.header}>
-            <Link href="/" accessibilityLabel="CashMine home">
+            <Link href="/" accessibilityLabel={strings.shell.homeLabel}>
               <Image
                 source={require("@/assets/brand/cashmine-logo.webp")}
                 style={s.logo}
                 contentFit="contain"
-                accessibilityLabel="CashMine"
+                accessibilityLabel={strings.common.brand}
               />
             </Link>
-            <Status>Demo data</Status>
+            <Status>{strings.shell.demo}</Status>
           </View>
           {children}
           <View style={s.footer}>
             <Icon name="shield" size={15} color={c.muted} />
             <Copy muted style={{ fontSize: 11 }}>
-              A preview with sample balances. No real transactions.
+              {strings.shell.footer}
             </Copy>
           </View>
         </View>
@@ -56,9 +54,21 @@ export function Shell({
         <View style={s.nav}>
           {(
             [
-              { href: "/", label: "Balances", icon: "wallet" },
-              { href: "/claim", label: "Claim", icon: "arrow" },
-              { href: "/activity", label: "Activity", icon: "activity" },
+              {
+                href: "/",
+                label: strings.shell.navigation.balances,
+                icon: "wallet",
+              },
+              {
+                href: "/claim",
+                label: strings.shell.navigation.claim,
+                icon: "arrow",
+              },
+              {
+                href: "/activity",
+                label: strings.shell.navigation.activity,
+                icon: "activity",
+              },
             ] as const
           ).map((item) => {
             const selected = pathname === item.href;

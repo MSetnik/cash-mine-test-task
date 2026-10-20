@@ -1,12 +1,13 @@
+import { strings } from "@/localization";
 import { router } from "expo-router";
 import { View } from "react-native";
 import { Shell } from "@/components/cashmine/shell";
 import { Action, Copy, Icon } from "@/components/cashmine/ui";
-import { palette } from "@/constants/cashmine";
+import { palette } from "@/styles/theme";
 
 export default function NotFoundScreen() {
   return (
-    <Shell title="Page not found">
+    <Shell title={strings.notFound.pageTitle}>
       <View
         style={{
           maxWidth: 480,
@@ -22,10 +23,12 @@ export default function NotFoundScreen() {
           weight="semibold"
           style={{ fontSize: 27, lineHeight: 35 }}
         >
-          This page isn’t here.
+          {strings.notFound.title}
         </Copy>
-        <Copy muted>Head back to your balances to find your payback.</Copy>
-        <Action onPress={() => router.replace("/")}>Back to balances</Action>
+        <Copy muted>{strings.notFound.description}</Copy>
+        <Action onPress={() => router.replace("/")}>
+          {strings.notFound.back}
+        </Action>
       </View>
     </Shell>
   );

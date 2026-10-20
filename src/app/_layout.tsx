@@ -1,8 +1,9 @@
+import { strings } from "@/localization";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, View } from "react-native";
-import { palette } from "@/constants/cashmine";
+import { palette } from "@/styles/theme";
 import "@/global.css";
 
 export default function RootLayout() {
@@ -22,7 +23,7 @@ export default function RootLayout() {
         }}
       >
         <ActivityIndicator
-          accessibilityLabel="Loading CashMine"
+          accessibilityLabel={strings.shell.loading}
           color={palette.accent}
         />
       </View>
