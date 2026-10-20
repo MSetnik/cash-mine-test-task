@@ -1,4 +1,4 @@
-import { palette as c, type as font } from "@/constants/cashmine";
+import { palette as c, typography as font } from "@/styles/theme";
 import { SymbolView } from "expo-symbols";
 import type { ComponentProps, ReactNode } from "react";
 import {

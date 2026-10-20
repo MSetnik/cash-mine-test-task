@@ -52,11 +52,15 @@ This branch is a visual prototype with fixtures. No API integration, token entry
 
 Use the site's light theme. Orange supports primary actions; the darker accent provides readable small text on pale surfaces. Green means confirmed/completed; red means failed; status also appears in text. The dark summary uses `#1B1815`, white amounts, and `#C0B8B0` secondary labels.
 
-Canonical runtime colors live in `src/constants/cashmine.ts`. This document mirrors the primary roles. The global stylesheet owns scrollbar state tokens and web focus styling. Asset-specific colors in fixtures distinguish Tether, Bitcoin, and Ethereum; they do not indicate financial status.
+Canonical runtime colors live in `src/styles/theme/colors.ts`. This document mirrors the primary roles. Browser theme tokens live in `src/styles/theme/web.css`; `src/global.css` applies scrollbar and focus styling. Asset-specific colors in `assetColors` distinguish Tether, Bitcoin, and Ethereum; they do not indicate financial status.
+
+## Localization
+
+All interface copy lives in `src/localization/en.ts`, exposed through `src/localization/index.ts`. Complete phrases, accessible labels, validation messages, and interpolated labels belong there. Activity dates use the explicit `en-GB` locale and UTC. Fixture IDs, asset codes, amounts, and timestamps remain data; status and filter logic use stable identifiers rather than translated labels. This extraction provides one English catalog, not a runtime language picker.
 
 ## Typography
 
-Inter Regular is body text; Inter SemiBold is headings, actions, and amounts. Inter Bold is available for stronger emphasis. Fonts are bundled locally and loaded before the app renders to avoid a late swap. Use system fallbacks if loading fails. Numeric summaries use tabular figures. The dominant total is 49px, screen headings 27px, sections 19px, body 14px, and supplementary labels 11–12px.
+Font tokens live in `src/styles/theme/typography.ts`; shared layout tokens live in `src/styles/theme/layout.ts`. Inter Regular is body text; Inter SemiBold is headings, actions, and amounts. Inter Bold is available for stronger emphasis. Fonts are bundled locally and loaded before the app renders to avoid a late swap. Use system fallbacks if loading fails. Numeric summaries use tabular figures. The dominant total is 49px, screen headings 27px, sections 19px, body 14px, and supplementary labels 11–12px.
 
 ## Layout
 
@@ -82,7 +86,7 @@ Runtime ownership:
 | Button | `src/components/cashmine/ui.tsx` | Runtime palette | Primary, secondary, quiet, disabled, busy | Keyboard and click checks |
 | Status | `src/components/cashmine/ui.tsx` | Runtime semantic colors | Neutral, positive, warning, negative | Text labels and live updates |
 
-Token mapping: `colors.primary → palette.brand → Action.primary`; `foreground → palette.ink → Copy`; `surface → palette.card → screen cards`; `background → palette.background → Shell`; `accent → palette.accent → selected states`; `typography → type → Copy`. Global CSS only provides browser-specific focus, pointer, reduced-motion, and scrollbar behavior.
+Token mapping: `colors.primary → palette.brand → Action.primary`; `foreground → palette.ink → Copy`; `surface → palette.card → screen cards`; `background → palette.background → Shell`; `accent → palette.accent → selected states`; `typography → typography → Copy`. Global CSS only provides browser-specific focus, pointer, reduced-motion, and scrollbar behavior.
 
 Actions have explicit labels and at least 44px tap areas where practical. Focus is visible; hover darkens the control slightly; pressed feedback reduces opacity. Disabled actions cannot activate. Refresh keeps its button dimensions while busy and announces a fixed-data refresh.
 

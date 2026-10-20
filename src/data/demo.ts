@@ -2,7 +2,6 @@
 export const demoAssets = [
   {
     asset: "USDT",
-    name: "Tether",
     symbol: "₮",
     decimals: 6,
     available: "820.413207",
@@ -11,12 +10,9 @@ export const demoAssets = [
     usd: "870.53",
     min: "10",
     fee: "1",
-    color: "#21764B",
-    tint: "#EAF3ED",
   },
   {
     asset: "BTC",
-    name: "Bitcoin",
     symbol: "₿",
     decimals: 8,
     available: "0.0032",
@@ -25,12 +21,9 @@ export const demoAssets = [
     usd: "228.15",
     min: "0.0001",
     fee: "0.00002",
-    color: "#A94708",
-    tint: "#F4E9DC",
   },
   {
     asset: "ETH",
-    name: "Ethereum",
     symbol: "Ξ",
     decimals: 18,
     available: "0.042",
@@ -39,94 +32,108 @@ export const demoAssets = [
     usd: "176.00",
     min: "0.01",
     fee: "0.0012",
-    color: "#5B3B8A",
-    tint: "#EDE9F7",
   },
 ] as const;
 export type DemoAsset = (typeof demoAssets)[number];
+export const demoWallet = "0x8f3e…a91c";
+export const demoTotals = {
+  whole: "1,274",
+  fraction: ".68",
+  available: "1,170.81",
+  pending: "71.87",
+  claiming: "32.00",
+} as const;
+
 export type ActivityKind = "Payback" | "Claim" | "Reversal";
-export type ActivityItem = {
+type ActivityBase = {
   id: string;
-  kind: ActivityKind;
-  title: string;
-  subtitle: string;
   amount: string;
   asset: string;
   status: "Confirmed" | "Pending" | "Completed" | "Failed";
   date: string;
+  time: string;
 };
+export type ActivityItem = ActivityBase &
+  (
+    | { kind: "Payback"; exchange: string }
+    | { kind: "Reversal"; exchange: string }
+    | { kind: "Claim"; wallet: string }
+  );
 export const demoActivity: ActivityItem[] = [
   {
     id: "a1",
     kind: "Payback",
-    title: "Binance payback",
-    subtitle: "Trading fee payback · 10:42",
+    exchange: "Binance",
+    time: "10:42",
     amount: "+12.84",
     asset: "USDT",
     status: "Confirmed",
-    date: "20 October 2026",
+    date: "2026-10-20",
   },
   {
     id: "a2",
     kind: "Claim",
-    title: "Claim to wallet",
-    subtitle: "Wallet 0x8f3e…a91c · 10:18",
+    wallet: demoWallet,
+    time: "10:18",
     amount: "−0.01",
     asset: "ETH",
     status: "Pending",
-    date: "20 October 2026",
+    date: "2026-10-20",
   },
   {
     id: "a3",
     kind: "Payback",
-    title: "Bybit payback",
-    subtitle: "Trading fee payback · 09:36",
+    exchange: "Bybit",
+    time: "09:36",
     amount: "+0.00018",
     asset: "BTC",
     status: "Pending",
-    date: "20 October 2026",
+    date: "2026-10-20",
   },
   {
     id: "a4",
     kind: "Claim",
-    title: "Claim to wallet",
-    subtitle: "Wallet 0x8f3e…a91c · 16:24",
+    wallet: demoWallet,
+    time: "16:24",
     amount: "−100",
     asset: "USDT",
     status: "Completed",
-    date: "19 October 2026",
+    date: "2026-10-19",
   },
   {
     id: "a5",
     kind: "Reversal",
-    title: "Payback adjustment",
-    subtitle: "Binance · 14:05",
+    exchange: "Binance",
+    time: "14:05",
     amount: "−2.40",
     asset: "USDT",
     status: "Confirmed",
-    date: "19 October 2026",
+    date: "2026-10-19",
   },
   {
     id: "a6",
     kind: "Payback",
-    title: "OKX payback",
-    subtitle: "Trading fee payback · 11:08",
+    exchange: "OKX",
+    time: "11:08",
     amount: "+0.012",
     asset: "ETH",
     status: "Confirmed",
-    date: "19 October 2026",
+    date: "2026-10-19",
   },
   {
     id: "a7",
     kind: "Claim",
-    title: "Claim to wallet",
-    subtitle: "Amount returned to available · 08:32",
+    wallet: demoWallet,
+    time: "08:32",
     amount: "10",
     asset: "USDT",
     status: "Failed",
-    date: "18 October 2026",
+    date: "2026-10-18",
   },
 ];
+
+export type DemoClaimError =
+  "invalidAmount" | "minimumAmount" | "exceedsAvailable";
 
 // Exact arithmetic for the isolated demo form only. Production choices remain open.
 export function parseDemoAmount(
@@ -145,21 +152,27 @@ export function formatDemoUnits(value: bigint, decimals: number): string {
     ? padded
     : `${padded.slice(0, -decimals)}${fraction ? `.${fraction}` : ""}`;
 }
-export function previewDemoClaim(value: string, asset: DemoAsset) {
+export function previewDemoClaim(
+  value: string,
+  asset: DemoAsset,
+): {
+  error: DemoClaimError | null;
+  receive: string | null;
+} {
   const units = parseDemoAmount(value, asset.decimals);
   if (units === null)
     return {
-      error: `Use a valid amount with up to ${asset.decimals} decimal places.`,
+      error: "invalidAmount",
       receive: null,
     };
   if (units < parseDemoAmount(asset.min, asset.decimals)!)
     return {
-      error: `Minimum claim is ${asset.min} ${asset.asset}.`,
+      error: "minimumAmount",
       receive: null,
     };
   if (units > parseDemoAmount(asset.available, asset.decimals)!)
     return {
-      error: "This amount exceeds your available balance.",
+      error: "exceedsAvailable",
       receive: null,
     };
   return {

@@ -1,11 +1,7 @@
+import { strings } from "@/localization";
 import { Link, router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  View,
-} from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import { ActivityRow } from "@/components/cashmine/activity-row";
 import { Shell } from "@/components/cashmine/shell";
 import {
@@ -15,8 +11,8 @@ import {
   SectionTitle,
   Status,
 } from "@/components/cashmine/ui";
-import { palette as c, type as font } from "@/constants/cashmine";
-import { demoActivity, demoAssets } from "@/data/demo";
+import { palette as c, typography as font, assetColors } from "@/styles/theme";
+import { demoActivity, demoAssets, demoTotals } from "@/data/demo";
 
 export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
@@ -36,17 +32,17 @@ export default function HomeScreen() {
     }, 700);
   }
   return (
-    <Shell title="Balances">
+    <Shell title={strings.home.pageTitle}>
       <View style={s.heading}>
         <View style={{ flex: 1 }}>
-          <Copy style={s.eyebrow}>YOUR PAYBACK</Copy>
+          <Copy style={s.eyebrow}>{strings.home.eyebrow}</Copy>
           <Copy role="heading" aria-level={1} style={s.title}>
-            Made from your trades.
+            {strings.home.title}
           </Copy>
         </View>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Refresh demo balances"
+          accessibilityLabel={strings.home.refreshLabel}
           disabled={refreshing}
           onPress={refresh}
           style={({ pressed }) => [s.refresh, pressed && { opacity: 0.6 }]}
@@ -60,18 +56,19 @@ export default function HomeScreen() {
       </View>
       <View style={s.balanceCard}>
         <View style={s.balanceTop}>
-          <Copy style={{ color: c.darkMuted }}>Total payback</Copy>
-          <Copy style={s.currency}>USD</Copy>
+          <Copy style={{ color: c.darkMuted }}>
+            {strings.home.totalPayback}
+          </Copy>
+          <Copy style={s.currency}>{strings.common.currency}</Copy>
         </View>
         <Copy style={s.total}>
-          $1,274<Copy style={s.cents}>.68</Copy>
+          {strings.common.usd(demoTotals.whole)}
+          <Copy style={s.cents}>{demoTotals.fraction}</Copy>
         </Copy>
-        <Copy style={s.balanceCaption}>
-          Your available, pending, and claiming balances.
-        </Copy>
+        <Copy style={s.balanceCaption}>{strings.home.balanceCaption}</Copy>
         <View
           style={s.allocation}
-          accessibilityLabel="Available 1,170 dollars and 81 cents, pending 71 dollars and 87 cents, claiming 32 dollars"
+          accessibilityLabel={strings.home.allocationLabel}
         >
           <View style={[s.bar, { flex: 91.85, backgroundColor: c.brand }]} />
           <View style={[s.bar, { flex: 5.64, backgroundColor: c.darkMuted }]} />
@@ -81,9 +78,21 @@ export default function HomeScreen() {
         </View>
         <View style={s.stats}>
           {[
-            ["Available", "$1,170.81", c.brand],
-            ["Pending", "$71.87", c.darkMuted],
-            ["Claiming", "$32.00", c.darkBorder],
+            [
+              strings.common.balances.available,
+              strings.common.usd(demoTotals.available),
+              c.brand,
+            ],
+            [
+              strings.common.balances.pending,
+              strings.common.usd(demoTotals.pending),
+              c.darkMuted,
+            ],
+            [
+              strings.common.balances.claiming,
+              strings.common.usd(demoTotals.claiming),
+              c.darkBorder,
+            ],
           ].map(([label, amount, color]) => (
             <View style={s.stat} key={label}>
               <View style={s.statLabel}>
@@ -95,17 +104,17 @@ export default function HomeScreen() {
           ))}
         </View>
         <Action icon="arrow" onPress={() => router.push("/claim")}>
-          Claim payback
+          {strings.home.claimPayback}
         </Action>
       </View>
       <View style={s.freshness} accessibilityLiveRegion="polite">
         <View style={[s.dot, { backgroundColor: c.positive }]} />
         <Copy muted style={{ fontSize: 11 }}>
           {refreshing
-            ? "Refreshing demo balances…"
+            ? strings.home.refreshing
             : refreshed
-              ? "Demo refreshed just now · Sample balances unchanged"
-              : "Sample snapshot · 20 Oct 2026, 10:45 UTC"}
+              ? strings.home.refreshed
+              : strings.home.snapshot}
         </Copy>
       </View>
       <View nativeID="dashboard-columns" style={s.columns}>
@@ -113,17 +122,19 @@ export default function HomeScreen() {
           <SectionTitle
             aside={
               <Copy muted style={s.small}>
-                3 assets
+                {strings.home.assetCount(demoAssets.length)}
               </Copy>
             }
           >
-            Your assets
+            {strings.home.yourAssets}
           </SectionTitle>
           {demoAssets.map((asset) => (
             <Pressable
               key={asset.asset}
               accessibilityRole="button"
-              accessibilityLabel={`Claim ${asset.name}`}
+              accessibilityLabel={strings.home.claimAssetLabel(
+                strings.common.assets[asset.asset],
+              )}
               onPress={() =>
                 router.push({
                   pathname: "/claim",
@@ -136,10 +147,15 @@ export default function HomeScreen() {
               ]}
             >
               <View style={s.assetTop}>
-                <View style={[s.coin, { backgroundColor: asset.tint }]}>
+                <View
+                  style={[
+                    s.coin,
+                    { backgroundColor: assetColors[asset.asset].tint },
+                  ]}
+                >
                   <Copy
                     style={{
-                      color: asset.color,
+                      color: assetColors[asset.asset].color,
                       fontSize: 25,
                       fontFamily: font.semibold,
                     }}
@@ -149,7 +165,7 @@ export default function HomeScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Copy weight="semibold" style={{ fontSize: 15 }}>
-                    {asset.name}
+                    {strings.common.assets[asset.asset]}
                   </Copy>
                   <Copy muted style={s.small}>
                     {asset.asset}
@@ -157,10 +173,10 @@ export default function HomeScreen() {
                 </View>
                 <View style={{ alignItems: "flex-end" }}>
                   <Copy weight="semibold" style={{ fontSize: 17 }}>
-                    ${asset.usd}
+                    {strings.common.usd(asset.usd)}
                   </Copy>
                   <Copy muted style={s.small}>
-                    Total value
+                    {strings.home.totalValue}
                   </Copy>
                 </View>
                 <Icon name="right" size={17} color={c.muted} />
@@ -168,25 +184,27 @@ export default function HomeScreen() {
               <View style={s.assetLine} />
               <View style={s.assetDetail}>
                 <Copy muted style={s.small}>
-                  Available
+                  {strings.common.balances.available}
                 </Copy>
                 <Copy weight="semibold" style={s.small}>
-                  {asset.available} {asset.asset}
+                  {strings.common.assetAmount(asset.available, asset.asset)}
                 </Copy>
               </View>
               <View style={s.assetDetail}>
                 <Copy muted style={s.small}>
-                  Pending
+                  {strings.common.balances.pending}
                 </Copy>
                 <Copy muted style={s.small}>
-                  {asset.pending} {asset.asset}
+                  {strings.common.assetAmount(asset.pending, asset.asset)}
                 </Copy>
               </View>
               {asset.claiming !== "0" && (
                 <View style={s.assetDetail}>
-                  <Copy style={[s.small, { color: c.accent }]}>Claiming</Copy>
                   <Copy style={[s.small, { color: c.accent }]}>
-                    {asset.claiming} {asset.asset}
+                    {strings.common.balances.claiming}
+                  </Copy>
+                  <Copy style={[s.small, { color: c.accent }]}>
+                    {strings.common.assetAmount(asset.claiming, asset.asset)}
                   </Copy>
                 </View>
               )}
@@ -197,11 +215,11 @@ export default function HomeScreen() {
           <SectionTitle
             aside={
               <Link href="/activity" style={s.textLink}>
-                View all ↗
+                {strings.home.viewAll}
               </Link>
             }
           >
-            Recent activity
+            {strings.home.recentActivity}
           </SectionTitle>
           <View style={s.activityCard}>
             {demoActivity.slice(0, 3).map((item) => (
@@ -209,14 +227,11 @@ export default function HomeScreen() {
             ))}
           </View>
           <View style={s.explainer}>
-            <Status tone="warning">Good to know</Status>
+            <Status tone="warning">{strings.home.goodToKnow}</Status>
             <Copy weight="semibold" style={{ fontSize: 17 }}>
-              Trading fees. Coming back.
+              {strings.home.explainerTitle}
             </Copy>
-            <Copy muted>
-              Your confirmed payback is ready to claim. Pending payback becomes
-              available once it’s confirmed.
-            </Copy>
+            <Copy muted>{strings.home.explainer}</Copy>
           </View>
         </View>
       </View>
