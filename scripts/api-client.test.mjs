@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { setImmediate as nextTurn } from "node:timers/promises";
 import { createCashmineApi, ApiError } from "../src/api/index.ts";
 
 const time = "2026-10-20T08:01:15.000Z";
@@ -34,14 +35,40 @@ const apiError = (kind, outcome, extra = {}) => (error) => {
   for (const [key, value] of Object.entries(extra)) assert.equal(error[key], value);
   return true;
 };
+// Axios's real fetch adapter runs in these tests. Only the network boundary is
+// replaced; the mock follows fetch's AbortSignal behavior.
+function mockFetch(respond, calls) {
+  return async (input, options) => {
+    const request = new Request(input, options);
+    const init = {
+      method: request.method,
+      headers: request.headers,
+      signal: request.signal,
+      cache: request.cache,
+      credentials: request.credentials,
+      redirect: request.redirect,
+      body: undefined,
+    };
+    calls.push({ url: request.url, init });
+    if (request.body) init.body = await request.text();
+    let cancel;
+    const aborted = new Promise((_, reject) => {
+      cancel = () => reject(init.signal.reason);
+      if (init.signal.aborted) cancel();
+      else init.signal.addEventListener("abort", cancel, { once: true });
+    });
+    try {
+      return await Promise.race([respond(request.url, init), aborted]);
+    } finally {
+      init.signal.removeEventListener("abort", cancel);
+    }
+  };
+}
 function client(respond, extra = {}) {
   const calls = [];
   const api = createCashmineApi({
     token: "test-only-token",
-    fetchImpl: async (url, init) => {
-      calls.push({ url, init });
-      return respond(url, init);
-    },
+    fetchImpl: mockFetch(respond, calls),
     ...extra,
   });
   return { api, calls };
@@ -51,7 +78,7 @@ test("balances preserve exact strings and server freshness; credentials are sent
   const { api, calls } = client(() => json(balances));
   assert.deepEqual(await api.getBalances(), balances);
   assert.equal(calls[0].url, "https://task-api.cashmine.io/v1/balances");
-  assert.equal(calls[0].init.headers.Authorization, "Bearer test-only-token");
+  assert.equal(calls[0].init.headers.get("Authorization"), "Bearer test-only-token");
   assert.equal(calls[0].init.cache, "no-store");
   assert.equal(calls[0].init.credentials, "omit");
   assert.equal(calls[0].init.redirect, "error");
@@ -74,8 +101,8 @@ test("claim submission serializes a stable body and requires an explicit key", a
   input.amount = "999";
   assert.deepEqual(await promise, { claim, replayed: false });
   assert.equal(calls[0].init.method, "POST");
-  assert.equal(calls[0].init.headers["Idempotency-Key"], "operation-1");
-  assert.equal(calls[0].init.headers["Content-Type"], "application/json");
+  assert.equal(calls[0].init.headers.get("Idempotency-Key"), "operation-1");
+  assert.equal(calls[0].init.headers.get("Content-Type"), "application/json");
   assert.equal(calls[0].init.body, JSON.stringify(body));
 });
 
@@ -89,7 +116,19 @@ test("same-key recovery after a lost response is explicit and recognizes a repla
   assert.equal(calls.length, 1, "transport must not automatically retry");
   assert.deepEqual(await api.createClaim(body, "same-key"), { claim, replayed: true });
   assert.equal(calls[0].init.body, calls[1].init.body);
-  assert.equal(calls[0].init.headers["Idempotency-Key"], calls[1].init.headers["Idempotency-Key"]);
+  assert.equal(calls[0].init.headers.get("Idempotency-Key"), calls[1].init.headers.get("Idempotency-Key"));
+});
+
+test("public errors do not retain Axios request configuration or credentials", async () => {
+  const { api } = client(() => json({ error: { code: "UNAUTHORIZED", message: "Invalid token" } }, 401));
+  await assert.rejects(api.getBalances(), (error) => {
+    assert.equal(error.config, undefined);
+    assert.equal(error.request, undefined);
+    assert.equal(error.response, undefined);
+    assert.equal(error.cause, undefined);
+    assert(!JSON.stringify(error).includes("test-only-token"));
+    return apiError("http", "not-applicable", { status: 401 })(error);
+  });
 });
 
 test("claim tracking encodes opaque IDs and preserves a failed status and reason", async () => {
@@ -184,7 +223,7 @@ test("malformed success payloads are rejected and never presented as valid claim
   await assert.rejects(invalidActivity.api.getActivity(), apiError("protocol", "not-applicable"));
 });
 
-test("timeout bounds even a non-cooperative fetch implementation and does not retry", async () => {
+test("Axios timeout cancels an in-flight request without retrying", async () => {
   let requestSignal;
   const { api, calls } = client((_, init) => {
     requestSignal = init.signal;
@@ -196,9 +235,11 @@ test("timeout bounds even a non-cooperative fetch implementation and does not re
 });
 
 test("deadline includes response-body consumption", async () => {
-  const { api } = client(() => ({
-    ok: true, status: 201, json: () => new Promise(() => {}),
-  }), { timeoutMs: 15 });
+  const { api } = client((_, init) => new Response(new ReadableStream({
+    start(controller) {
+      init.signal.addEventListener("abort", () => controller.error(init.signal.reason), { once: true });
+    },
+  }), { status: 201 }), { timeoutMs: 15 });
   await assert.rejects(api.createClaim(body, "key"), apiError("timeout", "unknown"));
 });
 
@@ -210,6 +251,7 @@ test("pre-aborted claims are not sent; in-flight cancellation cannot prove non-s
   assert.equal(calls.length, 0);
   const active = new AbortController();
   const pending = api.createClaim(body, "key", { signal: active.signal });
+  await nextTurn();
   active.abort();
   await assert.rejects(pending, apiError("aborted", "unknown"));
   assert.equal(calls.length, 1);
@@ -218,22 +260,22 @@ test("pre-aborted claims are not sent; in-flight cancellation cannot prove non-s
 test("separate token clients do not change credentials on in-flight requests or share abort signals", async () => {
   const calls = [];
   const resolvers = [];
-  const fetchImpl = (url, init) => new Promise((resolve) => {
-    calls.push({ url, init });
+  const fetchImpl = mockFetch(() => new Promise((resolve) => {
     resolvers.push(resolve);
-  });
+  }), calls);
   const first = createCashmineApi({ token: "session-a", fetchImpl });
   const second = createCashmineApi({ token: "session-b", fetchImpl });
   const controller = new AbortController();
   const a = first.getBalances({ signal: controller.signal });
   const b = second.getBalances();
+  await nextTurn();
   controller.abort();
   await assert.rejects(a, apiError("aborted", "not-applicable"));
   resolvers[0](json(balances));
   resolvers[1](json(balances));
   assert.deepEqual(await b, balances);
-  assert.equal(calls[0].init.headers.Authorization, "Bearer session-a");
-  assert.equal(calls[1].init.headers.Authorization, "Bearer session-b");
+  assert.equal(calls[0].init.headers.get("Authorization"), "Bearer session-a");
+  assert.equal(calls[1].init.headers.get("Authorization"), "Bearer session-b");
   assert.notEqual(calls[0].init.signal, calls[1].init.signal);
   assert.equal(calls[1].init.signal.aborted, false);
 });

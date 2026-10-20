@@ -31,7 +31,7 @@ The static web build is written to `dist/`.
 - A CashMine-branded balances dashboard with sample asset balances and USD totals.
 - An interactive demo claim flow with asset selection, amount validation, Max, fee review, confirmation, and sample pending/completed/failed outcomes.
 - Activity filters, date groups, and local pagination with dummy transactions.
-- A typed API client for all five CashMine operations, with response validation, cancellation, timeouts, structured errors, and focused contract tests. See [API structure and integration guidance](docs/api-client.md).
+- A typed Axios client for all five CashMine operations, with response validation, cancellation, timeouts, structured errors, and focused contract tests. See [API structure and integration guidance](docs/api-client.md).
 - File-based navigation in `src/app/`, with strict TypeScript and `@/` imports.
 - Web development and static export.
 

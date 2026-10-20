@@ -1,3 +1,4 @@
+import { create as createAxios, isAxiosError, isCancel, type AxiosResponse } from "axios";
 import { API_BASE_URL, REQUEST_TIMEOUT_MS } from "./config.ts";
 import type {
   ActivityQuery,
@@ -17,6 +18,7 @@ import {
 
 interface ClientOptions {
   token: string;
+  // Test seam for Axios's built-in fetch adapter; production uses its defaults.
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
 }
@@ -25,7 +27,7 @@ interface ClientOptions {
 // and cancel old requests when replacing this instance after a token change.
 export function createCashmineApi({
   token,
-  fetchImpl = globalThis.fetch,
+  fetchImpl,
   timeoutMs = REQUEST_TIMEOUT_MS,
 }: ClientOptions) {
   if (!token.trim() || /[\r\n]/.test(token)) {
@@ -40,6 +42,16 @@ export function createCashmineApi({
   } catch {
     throw new ApiError("Enter a valid API token.", { kind: "validation", field: "token" });
   }
+  const http = createAxios({
+    baseURL: API_BASE_URL,
+    timeout: timeoutMs,
+    adapter: "fetch",
+    env: fetchImpl ? { fetch: fetchImpl } : undefined,
+    headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+    responseType: "json",
+    withCredentials: false,
+    fetchOptions: { cache: "no-store", redirect: "error" },
+  });
 
   function inputError(message: string, field: string, submission = false): never {
     throw new ApiError(message, {
@@ -60,84 +72,52 @@ export function createCashmineApi({
     parse: (value: unknown) => T,
     options: RequestOptions = {},
     submission?: { body: string; key: string },
-  ): Promise<{ data: T; response: Response }> {
-    const controller = new AbortController();
-    let timedOut = false;
-    let sent = false;
-    const outcome = () => submission ? sent ? "unknown" as const : "not-sent" as const : "not-applicable" as const;
-    const abortError = () => new ApiError(
-      timedOut ? "The API request timed out." : "The API request was cancelled.",
-      { kind: timedOut ? "timeout" : "aborted", submissionOutcome: outcome() },
-    );
-    if (options.signal?.aborted) throw abortError();
-    const cancel = () => controller.abort();
-    options.signal?.addEventListener("abort", cancel, { once: true });
-    const timeout = setTimeout(() => {
-      timedOut = true;
-      controller.abort();
-    }, timeoutMs);
-    let rejectAbort: () => void = () => {};
-    const aborted = new Promise<never>((_, reject) => {
-      rejectAbort = () => reject(abortError());
-      controller.signal.addEventListener("abort", rejectAbort, { once: true });
-    });
-
-    try {
-      const execute = async () => {
-        sent = true;
-        const response = await fetchImpl(`${API_BASE_URL}${path}`, {
-          method: submission ? "POST" : "GET",
-          headers: {
-            Accept: "application/json",
-            Authorization: `Bearer ${token}`,
-            ...(submission ? {
-              "Content-Type": "application/json",
-              "Idempotency-Key": submission.key,
-            } : {}),
-          },
-          body: submission?.body,
-          signal: controller.signal,
-          cache: "no-store",
-          credentials: "omit",
-          redirect: "error",
-        });
-        let payload: unknown;
-        try {
-          payload = await response.json();
-        } catch {
-          if (!response.ok) throw httpError(response, undefined, !!submission);
-          throw new ApiError("The API returned invalid JSON.", {
-            kind: "protocol", status: response.status, submissionOutcome: outcome(),
-          });
-        }
-        if (!response.ok) throw httpError(response, payload, !!submission);
-        if (!(submission ? [200, 201] : [200]).includes(response.status)) {
-          throw new ApiError("The API returned an unexpected success status.", {
-            kind: "protocol", status: response.status, submissionOutcome: outcome(),
-          });
-        }
-        try {
-          return { data: parse(payload), response };
-        } catch {
-          throw new ApiError("The API returned an unexpected response shape.", {
-            kind: "protocol", status: response.status, submissionOutcome: outcome(),
-          });
-        }
-      };
-      // Includes response-body consumption in the deadline, even for a fetch
-      // implementation that fails to reject promptly after an abort.
-      return await Promise.race([execute(), aborted]);
-    } catch (error) {
-      if (controller.signal.aborted) throw abortError();
-      if (error instanceof ApiError) throw error;
-      throw new ApiError("Could not reach the API.", {
-        kind: "network",
-        submissionOutcome: outcome(),
+  ): Promise<{ data: T; response: AxiosResponse<unknown> }> {
+    if (options.signal?.aborted) {
+      throw new ApiError("The API request was cancelled.", {
+        kind: "aborted",
+        submissionOutcome: submission ? "not-sent" : "not-applicable",
       });
-    } finally {
-      clearTimeout(timeout);
-      options.signal?.removeEventListener("abort", cancel);
-      controller.signal.removeEventListener("abort", rejectAbort);
+    }
+    const submissionOutcome = submission ? "unknown" : "not-applicable";
+    try {
+      const response = await http.request<unknown>({
+        url: path,
+        method: submission ? "POST" : "GET",
+        data: submission?.body,
+        headers: submission ? {
+          "Content-Type": "application/json",
+          "Idempotency-Key": submission.key,
+        } : undefined,
+        signal: options.signal,
+      });
+      if (!(submission ? [200, 201] : [200]).includes(response.status)) {
+        throw new ApiError("The API returned an unexpected success status.", {
+          kind: "protocol", status: response.status, submissionOutcome,
+        });
+      }
+      try {
+        return { data: parse(response.data), response };
+      } catch {
+        throw new ApiError("The API returned an unexpected response shape.", {
+          kind: "protocol", status: response.status, submissionOutcome,
+        });
+      }
+    } catch (error) {
+      if (error instanceof ApiError) throw error;
+      if (isAxiosError(error) && error.response) {
+        throw httpError(
+          error.response.status, error.response.data,
+          error.response.headers["retry-after"], !!submission,
+        );
+      }
+      const timedOut = isAxiosError(error)
+        && (error.code === "ETIMEDOUT" || error.code === "ECONNABORTED");
+      const kind = isCancel(error) ? "aborted" : timedOut ? "timeout" : "network";
+      const message = kind === "aborted" ? "The API request was cancelled."
+        : kind === "timeout" ? "The API request timed out." : "Could not reach the API.";
+      // Do not expose AxiosError/config/cause: these can contain Authorization.
+      throw new ApiError(message, { kind, submissionOutcome });
     }
   }
 
@@ -192,7 +172,7 @@ export function createCashmineApi({
         }
         return result;
       }, options, { body: JSON.stringify(frozenBody), key: idempotencyKey });
-      return { claim: data, replayed: response.status === 200 || response.headers.get("Idempotent-Replayed") === "true" };
+      return { claim: data, replayed: response.status === 200 || response.headers["idempotent-replayed"] === "true" };
     },
     async getClaim(id: string, options?: RequestOptions) {
       required(id, "id");

@@ -50,14 +50,15 @@ function record(value: unknown): Record<string, unknown> | undefined {
 }
 
 export function httpError(
-  response: Response,
+  status: number,
   payload: unknown,
+  retryAfterHeader: unknown,
   isSubmission: boolean,
 ): ApiError {
   const error = record(record(payload)?.error);
   const code = typeof error?.code === "string" ? error.code : undefined;
   const bodyDelay = error?.retryAfterMs;
-  const header = response.headers.get("Retry-After");
+  const header = typeof retryAfterHeader === "string" ? retryAfterHeader : null;
   let headerDelay: number | undefined;
   if (header !== null) {
     const seconds = Number(header);
@@ -81,14 +82,14 @@ export function httpError(
     404: "NOT_FOUND",
     429: "RATE_LIMITED",
   };
-  const rejected = code !== undefined && rejectionCodes[response.status] === code;
+  const rejected = code !== undefined && rejectionCodes[status] === code;
   return new ApiError(
     typeof error?.message === "string"
       ? error.message
-      : `API request failed (HTTP ${response.status}).`,
+      : `API request failed (HTTP ${status}).`,
     {
       kind: "http",
-      status: response.status,
+      status,
       code,
       field: typeof error?.field === "string" ? error.field : undefined,
       retryAfterMs: delays.length ? Math.max(...delays) : undefined,
